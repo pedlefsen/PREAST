@@ -7,7 +7,7 @@ To infer founder sequence(s) and time of infection:
 
 ## Methodology ##
 
-Uses Prank[^1] to create a multiple sequence alignment and to estimate founder sequence.
+Uses Prank<sup>1</sup> to create a multiple sequence alignment and to estimate founder sequence.
 
 Uses Poisson goodness-of-fit test to evaluate whether the sample is
 consistent with a single founder hypothesis.  Within a sample, only
@@ -21,4 +21,5 @@ Time of infection is inferred with Beast.  A strict clock and constant
 population size are used a priors.  Tree height is constrained to be
 consistent with samples dates on the sequences.
 
-[^1]: Löytynoja, A., & Goldman, N. (2008). A model of evolution and structure for multiple sequence alignment. Philosophical Transactions of the Royal Society of London. Series B, Biological Sciences, 363(1512), 3913–3919. http://doi.org/10.1098/rstb.2008.0170
+--------
+<sup>1</sup>: Löytynoja, A., & Goldman, N. (2008). A model of evolution and structure for multiple sequence alignment. Philosophical Transactions of the Royal Society of London. Series B, Biological Sciences, 363(1512), 3913–3919. http://doi.org/10.1098/rstb.2008.0170
