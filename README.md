@@ -7,7 +7,7 @@ To infer founder sequence(s) and time of infection:
 
 ## Methodology ##
 
-Uses Prank[10.1098/rstb.2008.0170] to create a multiple sequence alignment and to estimate founder sequence.
+Uses Prank[@10.1098/rstb.2008.0170] to create a multiple sequence alignment and to estimate founder sequence.
 
 Uses Poisson goodness-of-fit test to evaluate whether the sample is
 consistent with a single founder hypothesis.  Within a sample, only
