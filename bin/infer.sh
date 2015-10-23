@@ -2,8 +2,7 @@
 set -e # exit on error
 
 
-export PATH=~matsengrp/local/bin/:~/src/matsen/hiv-sim/bin:$PATH
-export TEMPLATES=~/src/matsen/hiv-sim/templates
+export PATH=~matsengrp/local/bin/:$PATH
 
 
 
@@ -35,7 +34,8 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )"  >/dev/null && pwd )"
 
-PATH=${DIR}:${DIR}/../../bin:${PATH}
+export PATH=${DIR}:${PATH}
+export TEMPLATES=${DIR}/../templates
 files=()
 
 while [[ $# > 0 ]]
