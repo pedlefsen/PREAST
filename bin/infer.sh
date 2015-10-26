@@ -68,7 +68,8 @@ fi
 # for a mktmpdir that works on both linux and OS X
 outdir=`mktemp -d 2>/dev/null || mktemp -d -t 'tmpdir'`
 outdir="output"
-echotty "outdir= ${outdir}"
+mkdir -p "${outdir}"
+echotty "intermediate files are in ${outdir}/"
 for sample in "${files[@]}"
 do
     label=$(basename $sample)
