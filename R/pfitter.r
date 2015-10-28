@@ -38,9 +38,6 @@ library(assertthat)
 pfitter <- function(dlist, epsilon, nbases) {
     # sample is a character string label used to label plot and output files.
 
-    # where output files willbe placed
-    dir <- './'
-
     ### FUNCTIONS ###
     iseven <- function(c) {
 	c1 <- c/2-as.integer(c/2)

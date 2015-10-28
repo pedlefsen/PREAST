@@ -16,7 +16,7 @@ Example usage:
 
 ## Runnning on Gizmo servers (rhino0*, stoat) ##
 
-These scripts have dependencies on `prank`, `beast`, and a large of `python` modules.
+These scripts have dependencies on `prank`, `beast`, and a large number of `python` modules.
 
 A Linux binary of `prank` is included in the `bin/` directory.   A python virtual environment is also included with all necessary packages installed.
 Beast and the Beagle optimization library are available in `/apps`. Access these applications may be established through `module` definitiions.
@@ -26,6 +26,7 @@ For example, the following commands will run the inference on a simulated alignm
 ```
 	 $ ssh rhino04
 	 Last login: Mon Sep 28 22:39:27 2015 from juanite.fhcrc.org
+	 $ module use /home/matsengrp/modules 
 	 $ module load BEAST/1.8.2 beagle/2.1
 	 $ source venv/bin/activate
 	 $ bin/infer.sh sample_aln.fa 
