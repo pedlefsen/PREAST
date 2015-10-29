@@ -31,8 +31,8 @@
 #########################################################################
 
 
-library(tools)
-library(assertthat)
+if (!suppressMessages(require("pacman"))) install.packages("pacman")
+pacman::p_load(tools, assertthat)
 
 
 pfitter <- function(dlist, epsilon, nbases) {

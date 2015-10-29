@@ -6,7 +6,8 @@
 #  This script returns a 0 exit code for suspected single infections,
 #  a 1 exit code for multiple infections.
 
-suppressPackageStartupMessages(library("optparse"))
+if (!suppressMessages(require("pacman"))) install.packages("pacman")
+pacman::p_load(optparse)
 
 search.source <- function(file, path=c('.', '../R', '~/src/matsen/hiv-sim/vidd/R'), ...) 
 { 
@@ -28,9 +29,6 @@ select.early <- function(sequences) {
     sequences[date==early,]
 
 }
-
-
-
 
 search.source('utils.r')
 search.source('pfitter.r')
