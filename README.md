@@ -26,7 +26,8 @@ For example, the following commands will run the inference on a simulated alignm
 ```
 	 $ ssh rhino04
 	 Last login: Mon Sep 28 22:39:27 2015 from juanite.fhcrc.org
-	 $ module use /home/matsengrp/modules 
+	 $ cd ~/founder-inference-bakeoff
+	 $ module use modules 
 	 $ module load BEAST/1.8.2 beagle/2.1
 	 $ source venv/bin/activate
 	 $ bin/infer.sh sample_aln.fa 
