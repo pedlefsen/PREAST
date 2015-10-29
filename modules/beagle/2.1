@@ -1,0 +1,17 @@
+#%Module1.0
+proc ModulesHelp { } {
+global version prefix
+
+puts stderr "   Add Beagle 2.1"
+}
+
+module-whatis   "Beagle 2.1"
+
+set prefix $ModulesCurrentModulefile/../../../lib/beagle-2.1.2
+
+setenv FOO $ModulesCurrentModulefile
+prepend-path    LD_RUN_PATH     $prefix/lib
+prepend-path    LD_LIBRARY_PATH $prefix/lib
+prepend-path    PKG_CONFIG_PATH $prefix/lib/pkgconfig
+prepend-path    LIBRARY_PATH    $prefix/lib
+prepend-path    CPATH           $prefix/include
