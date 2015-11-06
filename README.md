@@ -18,7 +18,7 @@ Example usage:
 
 These scripts have dependencies on `prank`, `beast`, and a large number of `python` modules.
 
-A Linux binary of `prank` is included in the `bin/` directory.   A python virtual environment is also included with all necessary packages installed.
+A Linux binary of `prank` is included in the `bin/` directory.   A requirements.txt file lists all necessary python packages.
 Beast and the Beagle optimization library are available in `/apps`. Access these applications may be established through `module` definitiions.
 A python virtual environment is included with all necessary python packages preinstalled.
 
@@ -26,10 +26,9 @@ For example, the following commands will run the inference on a simulated alignm
 ```
 	 $ ssh rhino04
 	 Last login: Mon Sep 28 22:39:27 2015 from juanite.fhcrc.org
-	 $ cd ~/founder-inference-bakeoff
-	 $ module use modules 
-	 $ module load BEAST/1.8.2 beagle/2.1
-	 $ source venv/bin/activate
+	 $ git clone https://github.com/matsengrp/founder-inference-bakeoff.git
+	 $ cd founder-inference-bakeoff
+	 $ . <(./setup.py)
 	 $ bin/infer.sh sample_aln.fa 
 	 > sample_aln_founder_1
     GCTCCAGCTGGTTATGCGATTCTAAGGTGTAATAATAAGACATTCAATGGGACAGGACCATGCAACAATGTTAGCACAGTACAATGTACACATGGAATTAAGCCAGTGGTATCAACTCAACTACTGTTAAATGGTAGCCTAGCAGAAGAGGAGATAATAATTAGATCTGAAAATCTGACAAGCAATCACAAAACAATAATAGTACAGCTTAATAGGTCCATAGAAATTGTGTGCATAAGACCCGGCAATAACACAAGACAAAGTGTAAGGATAGGAACAGGACAAACATTCTATGCAACAGGTGACATAATAGGAGACATAAGAAAAGCATATTGTAACATTAGTGCAGAAAGATGGAATGAAACTTTAGAATGGGTAAAGAAAAAATTGGCAGAACACTTTCCTAATAAGACAATAAGATATCAACCATCTTCAGGAGGGGACCCGGAAGTTACAACGCATAGCTTT
