@@ -9,7 +9,7 @@
 if (!suppressMessages(require("pacman"))) install.packages("pacman")
 pacman::p_load(optparse)
 
-search.source <- function(file, path=c('.', '../R', '~/src/matsen/hiv-sim/vidd/R'), ...) 
+search.source <- function(file, path=c('.', 'R'), ...) 
 { 
     for (p in path) { 
         fp <- file.path(p, file) 
