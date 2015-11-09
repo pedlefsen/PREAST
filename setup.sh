@@ -7,5 +7,6 @@ if [ ! -e venv/bin/python2.7 ]; then
 fi
 echo 'module use modules;'
 echo 'module load BEAST/1.8.2 beagle/2.1;'
-echo 'source venv/bin/activate;'
+echo '. venv/bin/activate;'
+echo 'eval $(rvenv -e);'
 

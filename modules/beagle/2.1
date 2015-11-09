@@ -16,7 +16,7 @@ proc makeAbsolute {pathname} {
 
 module-whatis   "Beagle 2.1"
 
-set prefix [makeAbsolute $ModulesCurrentModulefile/../../../lib/beagle-2.1.2]
+set prefix [makeAbsolute [ file dirname $ModulesCurrentModulefile ]/../../lib/beagle-2.1.2]
 
 setenv beagle_prefix $prefix
 prepend-path    LD_RUN_PATH     $prefix/lib
