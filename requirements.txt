@@ -1,6 +1,6 @@
 python-dateutil
 biopython
-git+https://github.com/cswarth/rvenv.git@dev/quietinstall
+git+https://github.com/nhoffman/rvenv.git
 # numpy
 pandas
 Jinja2==2.8 
