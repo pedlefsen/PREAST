@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript 
 
-# attempts to determin if sequences in a fasta file are consistent with
+# attempts to determine if sequences in a fasta file are consistent with
 # a single infection or multiple infections.
 #
 #  This script returns a 0 exit code for suspected single infections,
@@ -40,7 +40,7 @@ parser <- OptionParser(usage='keele [options] <fastafile>') %>%
                help="Include site with gaps in distace measure [default %default].  This effectively adds in a new distance matrix calculated with 'indel' model in dist.dna().",
                dest="include.gaps")
 
-# a <- parse_args(parser, args = c("-v", 'samples/RV217_PDA_LH_Other.fa'), positional_arguments = TRUE)
+# a <- parse_args(parser, args = c('rv217_anon_1w_44.fasta'), positional_arguments = TRUE)
 
 a <- parse_args(parser, positional_arguments = TRUE)
 file <- a$args

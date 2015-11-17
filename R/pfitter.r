@@ -46,12 +46,12 @@ pfitter <- function(dlist, epsilon, nbases) {
     }
     
     phi <- sqrt(1+4/3)
-    #gens <- function(l,nb,epsilon) (l/(nb*epsilon)-(1-phi)/(phi^2))*((phi)/(1+phi))
     days <- function(l,nb,epsilon) 1.5*((phi)/(1+phi))*(l/(epsilon*nb) - (1-phi)/(phi^2))
-    ### end FUNCTIONS ###
 
     ### calc HD with consensus
-    d0 <- dlist[which(dlist[,1]==dlist[1,1]),]
+    d1 <- dlist[-which(dlist[,1]==dlist[1,1]),]	 # PAUL moved this here, to help handle singleton clusters.
+    seqnames <- unique(c( d1[,1], d1[,2] ))          # PAUL moved this here, to help handle singleton clusters.
+    d0 <- dlist[which(dlist[,1]==dlist[1,1] & (dlist[,2] %in% seqnames)),] # PAUL changed this, to handle singleton clusters.
     mult0 <- as.numeric(sub('.+_(\\d+)$', '\\1', d0[,2]))
     nseq <- sum(mult0)
     yvec0 <- rep(0, (1+max(d0[,3])))
@@ -154,8 +154,6 @@ pfitter <- function(dlist, epsilon, nbases) {
     uppdays <- round(upplim)
     lowdays <- round(lowlim)
     
-    formatteddays <- paste(round(estdays), " (", lowdays, ", ", uppdays, ")", sep="") 
-
     ### output figures
     dvec1 <- 0
     for(i in 1:length(yvec)){ dvec1 <- c(dvec1, rep((i-1),yvec[i])) }
@@ -168,39 +166,12 @@ pfitter <- function(dlist, epsilon, nbases) {
 
     #### FIT THE CONSENSUS ONLY HD DISTRIBUTION
     
-    if (lambda!=0) {
-        
-	xvec1 <- c(yvec0, rep(0,nl0))
-	yvec1 <- rep(0,2*nl0)
-	yvec1[1] <- 1/2*yvec0[1]*(yvec0[1]-1)  ### freq at zero 
-	mvals <- seq(2,2*nl0,2)
-
-	for(m in mvals) {
-            delta <- rep(0,m)
-            delta[1+m/2] <- 1
-            for(hj in 1:m){			
-                yvec1[m] <- yvec1[m] + 1/2*xvec1[hj]*xvec1[m-hj+1]
-                if(m<2*nl0) { yvec1[m+1] <- yvec1[m+1] + 1/2*xvec1[hj]*(xvec1[m-hj+2] - delta[hj]) } 
-            }
-            if(m<2*nl0) { yvec1[m+1] <- yvec1[m+1] + 1/2*xvec1[m+1]*xvec1[1] }
-	}
-	
-	dvec2 <- rep(0, yvec1[1])
-	w <- which(yvec1>0)	
-	for(hk in w[-1]) { dvec2 <- c(dvec2, rep((hk-1), yvec1[hk])) }
-	
-	mmax <- 1.5*(max(c(yvec0, yvec1)))			
-
-        # construction of convolution figures removed.
-        
-	check <- 0 
-
-    }
+    # construction of convolution figures removed.
     
 
     ### CONSTRUCT SIGMA_ij MATRIX THEN INVERT IT
     #pk <- function(x) ((nseq^2)*(2^x)*exp(-2*clambda)*(clambda^x))/factorial(x)
-    pk <- function(x) (exp( ( (log(nseq)*2)+(log(2)*x)+(-2*clambda)+log(clambda^x))-lfactorial(x) ) )
+    pk <- function(x) (exp( ( (log(nseq)*2)+(log(2)*x)+(-2*clambda)+log(clambda)*x)-lfactorial(x) ) ) # PAUL CHANGED log( clambda^x ) to log(clambda)*x
     mui <- function(x) nseq*dpois(x, lambda=clambda)
     SIGMA.DIM.MAX <- 170; # Beyond this value, factorial stops working in R.
     sigma.dim <- min( SIGMA.DIM.MAX, (2*nl0) );
@@ -217,13 +188,17 @@ pfitter <- function(dlist, epsilon, nbases) {
             
             for(l in 0:(sigma.dim-1)){   
                 
-                if(k>=l){ 
-                    c1 <- ((clambda^k)/factorial(k))*sum(choose(k,l:0)*((clambda^(0:l))/factorial(0:l)))
-                    c2 <- ((clambda^l)/factorial(l))*sum(choose(l,l:0)*((clambda^((k-l):k))/factorial((k-l):k))) 
+                if(k>=l){
+                    c1 <- exp( ((log( clambda )* k) - lfactorial(k)) + log( sum( exp( lchoose(k,l:0)+((log(clambda)*(0:l)) - lfactorial(0:l)) ) ) ) );
+                    stopifnot( is.finite( c1 ) );
+                    c2 <- exp( ((log( clambda )* l) - lfactorial(l)) + log( sum(exp( lchoose(l,l:0)+((log( clambda )*((k-l):k))-lfactorial((k-l):k))) ) ) );
+                    stopifnot( is.finite( c2 ) );
                 }
                 if(k<l){
-                    c1 <- ((clambda^l)/factorial(l))*sum(choose(l,k:0)*((clambda^(0:k))/factorial(0:k)))
-                    c2 <- ((clambda^k)/factorial(k))*sum(choose(k,k:0)*((clambda^((l-k):l))/factorial((l-k):l))) 
+                    c1 <- exp( ((log( clambda )* l) - lfactorial(l)) + log( sum( exp( lchoose(l,k:0)+((log( clambda )*(0:k)) - lfactorial(0:k))) ) ) );
+                    stopifnot( is.finite( c1 ) );
+                    c2 <- exp( ((log( clambda )* k) - lfactorial(k)) + log( sum(exp( lchoose(k,k:0)+((log(clambda)*((l-k):l)) - lfactorial((l-k):l))) ) ) );
+                    stopifnot( is.finite( c2 ) );
                 }
                 if( is.na( c1 ) ) {
                     c1 <- 0;
@@ -231,11 +206,15 @@ pfitter <- function(dlist, epsilon, nbases) {
                 if( is.na( c2 ) ) {
                     c2 <- 0;
                 }
-                sigmaij[k+1,l+1] <- 0.5*coeff*(c1+c2)
-
-                
-                if(k==l){ sigmaij[k+1,l+1] <- sigmaij[k+1,l+1] + (0.5)*pk(k) }
-                if((k==l)&(iseven(k))){ sigmaij[k+1,l+1] <- sigmaij[k+1,l+1] - (0.25)*mui(k/2) }
+                sigmaij[k+1,l+1] <- 0.5*coeff*(c1+c2);
+                if(k==l){
+                    if( iseven(k) ) {
+                        sigmaij[k+1,l+1] <- sigmaij[k+1,l+1] - (0.25)*mui(k/2);
+                    } else {
+                        sigmaij[k+1,l+1] <- sigmaij[k+1,l+1] + (0.5)*pk(k) ;
+                    }
+                }
+                stopifnot( is.finite( sigmaij[k+1,l+1] ) );
             }
 	}
         
@@ -247,16 +226,9 @@ pfitter <- function(dlist, epsilon, nbases) {
 	for(ii in 1:sigma.dim){diagmat[ii,ii]<-ifelse(diag[ii]==0,0,1/diag[ii])}
 	sigmainv <- sdec$u%*%diagmat%*%sdec$vt
 	
-	h <- hist(dvec1[ dvec1 <= sigma.dim ], breaks=seq(-1,(sigma.dim-1),1), plot=FALSE)
-	xvec <- h$breaks
+	h <- hist(dvec1[ dvec1 < sigma.dim ], breaks=seq(-1,(sigma.dim-1),1), plot=FALSE)
 	yvec <- h$counts
-	nl1 <- length(yvec)
-	aplambda <- sum((1:(nl1-1))*yvec[-1])/sum(yvec)
-
-        assert_that(lambda == aplambda)
         
-	pesce <- 0.5*nseq*(nseq-1)*dpois(0:(nl1-1), lambda=aplambda)
-
 	if (length(yvec)<sigma.dim) { 
             ccvv <- sigma.dim - length(yvec) 
             yvec <- c(yvec, rep(0,ccvv)) 
@@ -265,13 +237,13 @@ pfitter <- function(dlist, epsilon, nbases) {
 	chisq <- t(abs(yvec-eyvec))%*%sigmainv%*%(abs(yvec-eyvec))
         pval <- ifelse(chisq<0,2e-16,1-pchisq(chisq,df=nl0-1))
 	if(pval==0){ pval <- 2e-16 }
-	if(chisq<0){ chisq <- NA }
+	if(chisq<0){ chisq <- qchisq(p = 2e-16,df=nl0-1, lower.tail = FALSE ) } # Paul changed from "NA" - this is a high value, reflective of the low p-value.
     } else { 
 	chisq <- NA
-	nl <- NA
+	nl0 <- NA # Paul fixed to "nl0" from "nl"
 	pval <- 0
-        aplambda <- 0
     }
+  
 
     return(list(lambda=lambda,
                 stdev=newvarhd,
@@ -332,7 +304,7 @@ prep.distances <- function ( in.fasta, include.gaps.in.Hamming=FALSE ) {
     # them as point mutations (by including the indel counts in the
     # Hamming distance calculation).
     fasta.with.consensus <- fasta.with.consensus[ , .consensus.mat[ 1, ] != "-" ];
-    
+          
     # The pairwise.deletion = TRUE argument is necessary so that columns with any gaps are not removed.
     # The optional second call adds in the count of sites with gap differences
     # (gap in one sequence but not the other), which are not included
@@ -381,5 +353,5 @@ prep.distances <- function ( in.fasta, include.gaps.in.Hamming=FALSE ) {
     # fixup the distance to integer as it comes out of the matrix as character
     pairwise.distances.flat$distance <- as.integer(pairwise.distances.flat$distance)
 
-    return( list(distances=pairwise.distances.flat, seq.length=ncol( consensus )) );
+    return( list(distances=pairwise.distances.flat, seq.length=ncol( fasta.with.consensus )) );
 } 
