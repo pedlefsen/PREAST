@@ -81,11 +81,16 @@ def render(params, template, fp):
 # Convert a string like '1M', '3M', or '6M' to a timedelta object corresponding to number of months indicated in string.
 #
 def str2timedelta(s):
-    m = re.match(r'(\d+)M$', s)
-    if m:
-        delay = 30 * int(m.group(1))
+    intervals = { 'D' : 1,
+                  'W' : 7,
+                  'M' : 30,
+                  'Y' : 365 }
+
+    m = re.match(r'(\d+)([MWYD])$', s)
+    if m.group(2) in intervals:
+        delay = int(m.group(1)) * intervals[m.group(2)]
     else:
-        delay = 30 * 12 
+        delay = 30 * 12
     return(timedelta(days=delay))
 
     
