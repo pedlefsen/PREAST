@@ -18,7 +18,7 @@ search.source <- function(file, path=c('.', 'R'), ...)
    stop("file ", sQuote(file), " not found") 
 } 
 
-# parse dates in the sequence id and extract just tose sequences from the earliest date.
+# parse dates in the sequence id and extract just those sequences from the earliest date.
 select.early <- function(sequences) {
     date <- rownames(sequences) %>%
         strsplit('|', fixed=TRUE) %>%

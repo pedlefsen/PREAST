@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -e # exit on error
 
+# see http://unix.stackexchange.com/a/84980/100709
+# for a mktmpdir that works on both linux and OS X
+outdir=$(mktemp -d 2>/dev/null)
+function cleanup() {
+    if [ -d "${outdir}" -a "${outdir}"=="$(dirname $(mktemp -d -u))*" ]
+    then
+	rm -rf "${outdir}"
+    fi
+}
+
+trap "cleanup" EXIT
 
 export PATH=~matsengrp/local/bin/:$PATH
 
@@ -64,11 +75,6 @@ if [[ ${#files[@]} == 0 ]]; then
     exit 1
 fi
 
-# see http://unix.stackexchange.com/a/84980/100709
-# for a mktmpdir that works on both linux and OS X
-outdir=`mktemp -d 2>/dev/null || mktemp -d -t 'tmpdir'`
-outdir="output"
-mkdir -p "${outdir}"
 echotty "intermediate files are in ${outdir}/"
 for sample in "${files[@]}"
 do
@@ -116,7 +122,7 @@ do
 
     # sigh...if using the -working option of beast, the configuration file must be specified with an absoute path.
     echotty "Running BEAST..."
-    echocmd "beast -working -overwrite -beagle ${PWD}/${outdir}/beast_in.xml >${outdir}/beastcmd.log  2>&1"
+    echocmd "beast -working -overwrite -beagle ${outdir}/beast_in.xml >${outdir}/beastcmd.log  2>&1"
 
     echotty 'Extracting estimated time of infection'
     echocmd 'posterior_toi.py ${outdir}/beastout.log $sample'
