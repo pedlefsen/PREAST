@@ -1,26 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-    make a new BEAST  config file by inserting FASTA sequences from the RV217 trail.
-    The sequence names int the RV217 data look like this:
-	>RV217_PDB|1M|01WG|NFLG|2011/11/10
+make a new BEAST  config file by inserting FASTA sequences from the RV217 trial.
 
-    The 5th component is the sample data and should eb converted to an appropriate tipdate for BEAST.
+The sequence names in the RV217 data look like this:
+>RV217_PDB|1M|01WG|NFLG|2011/11/10
 
-    usage:
+The 5th component is the sample data and should be converted to an appropriate tipdate for BEAST.
 
-         mkbeast.py -p foo template.xml sequences.fasta  >beast_in.xml
+usage:
 
-    This will take the fasta sequences and insert them into template.xml
-    to produce an XML file that is suitable to pass to BEAST.  
+mkbeast.py -p foo template.xml sequences.fasta  >beast_in.xml
 
-    Once the BEAST config file is generated, you would run,
+This will take the fasta sequences and insert them into template.xml
+to produce an XML file that is suitable to pass to BEAST.  
 
-         beast beast_in.xml
+Once the BEAST config file is generated, you would run,
 
-    This will produce various output files, among which is foo.trees.
-    That file gets fed to the 'annotatetrees' program and the output of that gets
-    visualized with 'figtree'.
+beast beast_in.xml
+
+This will produce various output files, among which is foo.trees.
+That file gets fed to the 'annotatetrees' program and the output of that gets
+visualized with 'figtree'.
+
+Templates are Beast XML config files with embedded Jinja2 fragments
+that are expanded and substituted before rendering.
 '''
 
 from __future__ import print_function

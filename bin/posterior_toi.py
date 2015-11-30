@@ -3,11 +3,15 @@
 '''
 extract an estimate of time of infection from a mcmc posterior distribution.
 
-expects a log file as output by Beast.
+Parses the input fasta file to extract the latest date associated with
+the leaves of the tree.  Then parses the posterior log to extract a mean
+treeheight.  Subtracts the ree height (in years) from the latest leaf
+date to arrive at an estimate for time of infection.  Credible interval
+is calculated within 1.96 std deviation of the tree height.
+
 Typical usage:
 
 $ posterior_Toi.py outout/beastout.log samples/CAPRISA002_PDC_GP120_1M_aln.fa
-
 '''
 from __future__ import print_function
 
@@ -24,18 +28,20 @@ import pandas as pd
 # Convert a string like '1M', '3M', or '6M' to a timedelta object corresponding to number of months indicated in string.
 #
 def str2timedelta(s):
-    m = re.match(r'(\d+)M$', s)
-    if m:
-        delay = 30 * int(m.group(1))
+    intervals = { 'D' : 1,
+                  'W' : 7,
+                  'M' : 30,
+                  'Y' : 365 }
+
+    m = re.match(r'(\d+)([MWYD])$', s)
+    if m.group(2) in intervals:
+        delay = int(m.group(1)) * intervals[m.group(2)]
     else:
-        delay = 30 * 12 
+        delay = 30 * 12
     return(timedelta(days=delay))
 
     
 def processFasta(datafile):
-    '''
-    Read sequences from a FASTA file (datafile) and create a nested data structure thet organizaes the sequences by patient and sample date.
-    '''
     patient = defaultdict(dict)
     
     # define a regex to extract the generation number from the fasta id string
@@ -50,6 +56,9 @@ def processFasta(datafile):
             patientId = fields[0]
             timePoint = fields[1] if len(fields) > 0 else "0"
             sampleDate = fields[4] if len(fields) > 3 else "0"
+            # if the sequence name ends with "_<digits>", assume this is a multiplicity indicator
+            # and strip it off before converting the date.
+            sampleDate = re.sub(r"_\d+$", '', sampleDate)
             taxon = record
 
             collectiondate = patient[sampleDate]

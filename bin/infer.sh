@@ -5,9 +5,9 @@ set -e # exit on error
 # for a mktmpdir that works on both linux and OS X
 outdir=$(mktemp -d 2>/dev/null)
 function cleanup() {
-    if [ -d "${outdir}" -a "${outdir}"=="$(dirname $(mktemp -d -u))*" ]
+    if [ -d "${outdir}" -a "${outdir}"=="$(dirname $(mktemp -d -u))*" ] && [ ${debug} != true ]
     then
-	rm -rf "${outdir}"
+	echocmd rm -rf "${outdir}"
     fi
 }
 
@@ -23,13 +23,13 @@ function usage() {
 
 function echotty() {
     # echo to stderr if bound to a tty, otherwise stay silent.
-    if [  "$verbose" = true ] && [ -t 2 ] ; then
+    if [  ${verbose} = true ] && [ -t 2 ] ; then
 	echo "$@" 1>&2
     fi
 }
 
 function echocmd() {
-    if [ "$verbose" = true ]; then
+    if [ ${verbose} = true ]; then
 	echo "$@" 1>&2
     fi
     eval $@
@@ -49,13 +49,18 @@ export PATH=${DIR}:${PATH}
 export TEMPLATES=${DIR}/../templates
 files=()
 
+debug=false
+verbose=false
+
 while [[ $# > 0 ]]
 do
 key="$1"
-echocmd=false
 case $key in
     -v|--verbose)
 	verbose=true
+    ;;
+    -d|--debug)
+	debug=true
     ;;
     -*)
 	echo 'Unknown argument - "$key"'
@@ -75,7 +80,6 @@ if [[ ${#files[@]} == 0 ]]; then
     exit 1
 fi
 
-echotty "intermediate files are in ${outdir}/"
 for sample in "${files[@]}"
 do
     label=$(basename $sample)
@@ -86,7 +90,8 @@ do
     echocmd "prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 
     echotty "Testing for multiple founders..."
-    moi=$(keele ${outdir}/${label}.fa)
+    echocmd "keele ${outdir}/${label}.fa >${outdir}/keele.out"
+    moi=$(cat ${outdir}/keele.out)
     if [[ "${moi}" == *"multiple infection"* ]]
     then
 	# multiple founders
