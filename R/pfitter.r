@@ -287,24 +287,9 @@ add.consensus <- function ( in.fasta, label='sample' ) {
 #     d <- prep.distances(seq)
 #     r <- pfitter(d$distances, 2.16e-05, d$seq.length)
 
-prep.distances <- function ( in.fasta, include.gaps.in.Hamming=FALSE ) {
-    stopifnot(inherits(in.fasta, 'DNAbin'))
-    
-    # Add the consensus.
-    .consensus.mat <- matrix( seqinr::consensus( as.character( in.fasta ) ), nrow = 1 );
-    consensus <- as.DNAbin( .consensus.mat );
-    rownames( consensus ) <- paste( "CONSENSUS" );
-    
-    fasta.with.consensus <- rbind( consensus, in.fasta );
-    
-    # Remove any columns with a consensus that is a gap, which means
-    # that over half of seqs have gaps.  This needs to be removed
-    # because it becomes not sensible to consider poisson rates of
-    # insertions.  We do however consider rates of deletions, treating
-    # them as point mutations (by including the indel counts in the
-    # Hamming distance calculation).
-    fasta.with.consensus <- fasta.with.consensus[ , .consensus.mat[ 1, ] != "-" ];
-          
+prep.distances <- function ( fasta.with.consensus, include.gaps.in.Hamming=FALSE ) {
+    stopifnot(inherits(fasta.with.consensus, 'DNAbin'))
+              
     # The pairwise.deletion = TRUE argument is necessary so that columns with any gaps are not removed.
     # The optional second call adds in the count of sites with gap differences
     # (gap in one sequence but not the other), which are not included

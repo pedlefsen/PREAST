@@ -7,7 +7,7 @@
 #  a 1 exit code for multiple infections.
 
 if (!suppressMessages(require("pacman"))) install.packages("pacman")
-pacman::p_load(optparse)
+pacman::p_load(optparse,tidyr, dplyr)
 
 search.source <- function(file, path=c('.', 'R'), ...) 
 { 
@@ -23,12 +23,43 @@ select.early <- function(sequences) {
     date <- rownames(sequences) %>%
         strsplit('|', fixed=TRUE) %>%
         rapply(function(x) tail(x, 1)) %>%
+        (function(l) sub("_\\d+$", "", l)) %>%
         as.Date()
 
     early <- date %>% unique() %>% sort() %>% head(1)
     sequences[date==early,]
 
 }
+
+# add a consensus sequence.
+# Useful for formatting a fasta file in a form acceptable
+# to the PFitter tool at http://www.hiv.lanl.gov/content/sequence/POISSON_FITTER/pfitter.html
+#
+# Typical usage:
+# 	read.dna( fasta.file, format = "fasta" ) %>%
+#     	    add.consensus( label=basename(file_path_sans_ext(fasta.file))) %>%
+#     	    write.dna('output2.fa', format = "fasta", nbcol=-1, colsep = "",indent = 0,blocksep = 0)
+#
+add.consensus <- function ( in.fasta, label='Consensus' ) {
+    .consensus.mat <- matrix( seqinr::consensus( as.character( in.fasta ) ), nrow = 1 );
+    consensus <- as.DNAbin( .consensus.mat );
+    rownames( consensus ) <- label
+    
+    rbind( consensus, in.fasta );
+}
+
+filter.gaps <- function(in.fasta, consensus='Consensus') {
+    # Remove any columns with a consensus that is a gap, which means
+    # that over half of seqs have gaps.  This needs to be removed
+    # because it becomes not sensible to consider poisson rates of
+    # insertions.  We do however consider rates of deletions, treating
+    # them as point mutations (by including the indel counts in the
+    # Hamming distance calculation).
+    in.fasta <- in.fasta[,in.fasta[1,] != '-']
+    
+    return(in.fasta)
+}
+
 
 search.source('utils.r')
 search.source('pfitter.r')
@@ -40,7 +71,7 @@ parser <- OptionParser(usage='keele [options] <fastafile>') %>%
                help="Include site with gaps in distace measure [default %default].  This effectively adds in a new distance matrix calculated with 'indel' model in dist.dna().",
                dest="include.gaps")
 
-# a <- parse_args(parser, args = c('rv217_anon_1w_44.fasta'), positional_arguments = TRUE)
+# a <- parse_args(parser, args = c('sample_aln.fa'), positional_arguments = TRUE)
 
 a <- parse_args(parser, positional_arguments = TRUE)
 file <- a$args
@@ -57,7 +88,9 @@ if (file.access(file) == -1)
 
 d <- read.dna( file, format = "fasta" ) %>%
     select.early() %>%
-    prep.distances(include.gaps.in.Hamming=opt$include.gaps )
+    add.consensus() %>%
+    filter.gaps() %>%
+    prep.distances(include.gaps.in.Hamming=opt$include.gaps)
 
 r <- pfitter(d$distances, opt$rate, d$seq.length)
 

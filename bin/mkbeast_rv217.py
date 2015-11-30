@@ -112,6 +112,9 @@ def processFasta(datafile):
             patientId = fields[0]
             timePoint = fields[1] if len(fields) > 0 else "0"
             sampleDate = fields[4] if len(fields) > 3 else "0"
+            # if the sequence name ends with "_<digits>", assume this is a multiplicity indicator
+            # and strip it off before converting the date.
+            sampleDate = re.sub(r"_\d+$", '', sampleDate)
             taxon = record
 
             collectiondate = patient[sampleDate]

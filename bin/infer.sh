@@ -80,17 +80,18 @@ for sample in "${files[@]}"
 do
     label=$(basename $sample)
     label=${label%.*}
+    echocmd "dedup.py ${sample} >${outdir}/${label}.fa"
 
     echotty "Creating alignment with PRANK..." 
-    echocmd "prank -d=${sample} -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
+    echocmd "prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 
     echotty "Testing for multiple founders..."
-    moi=$(keele ${sample})
+    moi=$(keele ${outdir}/${label}.fa)
     if [[ "${moi}" == *"multiple infection"* ]]
     then
 	# multiple founders
 	# split just below the root and sequences separately.
-	echocmd "treesplit.py -o  ${outdir} ${outdir}/prank.best.dnd ${sample}"
+	echocmd "treesplit.py -o  ${outdir} ${outdir}/prank.best.dnd ${outdir}/${label}.fa"
 	echocmd "prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 	echocmd "prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 
@@ -125,7 +126,7 @@ do
     echocmd "beast -working -overwrite -beagle ${outdir}/beast_in.xml >${outdir}/beastcmd.log  2>&1"
 
     echotty 'Extracting estimated time of infection'
-    echocmd 'posterior_toi.py ${outdir}/beastout.log $sample'
+    echocmd 'posterior_toi.py ${outdir}/beastout.log ${outdir}/${label}.fa'
 
     # echotty "Exracting guide tree..." 
     # echocmd "treeannotator ${outdir}/beastout.trees > ${outdir}/mcc.tree 2>${outdir}/treeannotator.log"
@@ -133,7 +134,7 @@ do
     # tr "/" "-" < ${outdir}/mcc.tree | nexus2newick.py | tr "-" "/" | tr -d "'" > ${outdir}/guidetree.tree
 
     # echotty "Inferring ancestral states with PRANK..." 
-    # echocmd "prank -d=${sample} -t=${outdir}/guidetree.tree -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -codon >${outdir}/prankcmd.log 2>&1"
+    # echocmd "prank -d=${outdir}/${label}.fa -t=${outdir}/guidetree.tree -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -codon >${outdir}/prankcmd.log 2>&1"
 
 done
 
