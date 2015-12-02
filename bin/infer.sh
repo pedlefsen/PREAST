@@ -97,11 +97,23 @@ do
 	# multiple founders
 	# split just below the root and sequences separately.
 	echocmd "treesplit.py -o  ${outdir} ${outdir}/prank.best.dnd ${outdir}/${label}.fa"
-	echocmd "prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
-	echocmd "prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 
-	founder1=$(prankroot.py ${outdir}/left.best.anc.dnd ${outdir}/left.best.anc.fas)
-	founder2=$(prankroot.py ${outdir}/right.best.anc.dnd ${outdir}/right.best.anc.fas)
+	if [[ $(egrep -c '^>' ${outdir}/left.fasta) > 1 ]]
+	then
+	    echocmd "prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
+	    founder1=$(prankroot.py ${outdir}/left.best.anc.dnd ${outdir}/left.best.anc.fas)
+	else
+	    founder1=$(egrep -v '^>' ${outdir}/left.fasta)
+	fi
+
+	if [[ $(egrep -c '^>' ${outdir}/right.fasta) > 1 ]]
+	then
+	    echocmd "prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
+	    founder2=$(prankroot.py ${outdir}/right.best.anc.dnd ${outdir}/right.best.anc.fas)
+	else
+	    founder2=$(egrep -v '^>' ${outdir}/right.fasta)
+	fi
+	
 	# if [[ "${founder1}" == "${founder2}" ]]
 	# then
 	#     echo "Founders are identical"
