@@ -127,7 +127,7 @@ def main(args=sys.argv[1:]):
     doi_early = latest_timepoint - timedelta(days=365.0*(toi + 1.96*std))
     doi_late = latest_timepoint - timedelta(days=365.0*(toi - 1.96*std))
     
-    print('Estimated date of infection: {}  (95% credible interval [{} - {}])'.format(
+    print('{},{},{}'.format(
         datetime.strftime(doi, '%Y/%m/%d'),
         datetime.strftime(doi_early, '%Y/%m/%d'),
         datetime.strftime(doi_late, '%Y/%m/%d')))
