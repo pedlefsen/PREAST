@@ -60,6 +60,30 @@ filter.gaps <- function(in.fasta, consensus='Consensus') {
     return(in.fasta)
 }
 
+validate.sequences <- function(in.fasta) {
+    stopifnot(inherits(in.fasta, "DNAbin"))
+    if (nrow(in.fasta) <= 1) {
+        stop("not enough sequences to run a poisson fitter on") 
+    }
+    return(in.fasta)
+    
+}
+
+test.multiplicty <- function(file, opts) {
+    tryCatch({
+        r <- read.dna( file, format = "fasta" ) %>%
+            select.early() %>%
+            validate.sequences() %>%
+            add.consensus() %>%
+            filter.gaps() %>%
+            prep.distances(include.gaps.in.Hamming=opt$include.gaps) %>%
+            (function(d) pfitter(d$distances, opt$rate, d$seq.length))
+                
+        return(ifelse(r$goodness.pval < 0.05, 2, 1))
+    }, error = function(e) {
+        return(1)
+    })
+}
 
 search.source('utils.r')
 search.source('pfitter.r')
@@ -72,6 +96,8 @@ parser <- OptionParser(usage='keele [options] <fastafile>') %>%
                dest="include.gaps")
 
 # a <- parse_args(parser, args = c('sample_aln.fa'), positional_arguments = TRUE)
+# a <- parse_args(parser, args = c('caprisa002_pda_gp120_1m6m_aln.fasta'), positional_arguments = TRUE)
+# a <- parse_args(parser, args = c('/tmp/tmp.IVXFilITKO/bakeoff_analysis_rv217_40265_1M6M_NFLG_removeHypermutatedSequences_removeRecombinedSequences.fa'), positional_arguments = TRUE)
 
 a <- parse_args(parser, positional_arguments = TRUE)
 file <- a$args
@@ -86,21 +112,18 @@ if (length(file) == 0) {
 if (file.access(file) == -1)
     stop(sprintf("Cannot open FASTA input file '%s'", file))
 
-d <- read.dna( file, format = "fasta" ) %>%
-    select.early() %>%
-    add.consensus() %>%
-    filter.gaps() %>%
-    prep.distances(include.gaps.in.Hamming=opt$include.gaps)
-
-r <- pfitter(d$distances, opt$rate, d$seq.length)
-
-cat(sprintf('goodness.of.fit.pvalue = %e\t', r$goodness.pval))
-
-if ( r$goodness.pval < 0.05 ) {
+m <- test.multiplicty(file, opt)
+if ( m > 1 ) {
     # null hypothesis unlikely; inconsistent with single infection
     cat("cannot rule out multiple infection\n")
 } else {
     # cannot rule out null hypothesis; consistent w/ single infection.
     cat("consistent with single infection.\n")
 }
+
 quit("no", status=0)
+
+
+# Local Variables:
+# mode: R
+# End:              
