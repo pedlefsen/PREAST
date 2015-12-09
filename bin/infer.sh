@@ -66,7 +66,7 @@ keep=false
 prefix="infer_"
 
 OPTIND=1 # Reset is necessary if getopts was used previously in the script.  It is a good idea to make this local in a function.
-while getopts "hvp:" opt; do
+while getopts "hvkp:" opt; do
     case "$opt" in
         h)
             usage

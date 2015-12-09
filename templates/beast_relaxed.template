@@ -13,9 +13,16 @@
 <!-- working dir:	{{workdir}} -->
 
 <beast>
-  <!-- The list of taxa to be analysed (can also include dates/ages).          -->
-  <!-- ntax=${taxon_count} -->
+{%- set taxon_count = [0] -%}
+{%- for patient in patients.values() -%}
+{%- for visit in patient.values() -%}
+{%- set n = visit.taxa|length -%}
+{%-if taxon_count.append(taxon_count.pop() + visit.taxa|length ) -%}{%- endif -%} 
+{%-endfor-%}
+{%-endfor%}
 
+  <!-- The list of taxa to be analysed (can also include dates/ages).          -->
+  <!-- ntaxa={{taxon_count[0]}} -->
 
   <!-- The overall taxa includes all samples, plus posssibly an outgroup  -->
   <taxa id="taxa">
@@ -197,6 +204,28 @@
 
   <!-- Define operators                                                        -->
   <operators id="operators" optimizationSchedule="default">
+    {% if taxon_count[0] > 2 -%}
+    <!-- Tree operators -->
+    <!-- Only include these if there are more than 2 taxa. -->
+    <!-- For details of why this is important, see: -->
+    <!-- https://groups.google.com/forum/#!topic/beast-users/RmrciY9v04g -->
+    <subtreeSlide size="180.0" gaussian="true" weight="15">
+      <treeModel idref="treeModel"/>
+    </subtreeSlide>
+    <narrowExchange weight="15">
+      <treeModel idref="treeModel"/>
+    </narrowExchange>
+    <wideExchange weight="3">
+      <treeModel idref="treeModel"/>
+    </wideExchange>
+    <wilsonBalding weight="3">
+      <treeModel idref="treeModel"/>
+    </wilsonBalding>
+    <uniformOperator weight="30">
+      <parameter idref="treeModel.internalNodeHeights"/>
+    </uniformOperator>
+    {%- endif -%}
+
     <scaleOperator scaleFactor="0.75" weight="0.1">
       <parameter idref="kappa"/>
     </scaleOperator>
@@ -209,24 +238,9 @@
     <scaleOperator scaleFactor="0.75" weight="3">
       <parameter idref="ucld.stdev"/>
     </scaleOperator>
-    <subtreeSlide size="48.0" gaussian="true" weight="15">
-      <treeModel idref="treeModel"/>
-    </subtreeSlide>
-    <narrowExchange weight="15">
-      <treeModel idref="treeModel"/>
-    </narrowExchange>
-    <wideExchange weight="3">
-      <treeModel idref="treeModel"/>
-    </wideExchange>
-    <wilsonBalding weight="3">
-      <treeModel idref="treeModel"/>
-    </wilsonBalding>
     <scaleOperator scaleFactor="0.75" weight="3">
       <parameter idref="treeModel.rootHeight"/>
     </scaleOperator>
-    <uniformOperator weight="30">
-      <parameter idref="treeModel.internalNodeHeights"/>
-    </uniformOperator>
     <scaleOperator scaleFactor="0.75" weight="3">
       <parameter idref="exponential.popSize"/>
     </scaleOperator>
