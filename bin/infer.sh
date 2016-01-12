@@ -14,8 +14,8 @@ function cleanup() {
 trap "cleanup" EXIT
 
 export PATH=~matsengrp/local/bin/:$PATH
-
-
+export rate=1.62e-2
+export backoff=0
 
 function usage() {
 cat << EOF
@@ -148,7 +148,7 @@ EOF
     # inserts sample sequences into a beast configurarion file.
     # parses date fromt he sequence ids and converts to tip date for BEAST
     echotty "Make BEAST config file..."
-    echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
+    echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template rate=${rate} backoff=${backoff} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
 
     # sigh...if using the -working option of beast, the configuration file must be specified with an absoute path.
     echotty "Running BEAST..."

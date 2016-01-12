@@ -48,8 +48,6 @@ import operator
 # derived from the first part of the name on an alignment,
 # e.g. 'patient1_100_1' yields patient id 'patient1'
 #
-patients = defaultdict()
-
 def dayofyear(value):
     t = value.timetuple()
     return "{}".format(t.tm_year+(t.tm_yday-1)/(366.0 if calendar.isleap(t.tm_year) else 365.0))
@@ -61,7 +59,7 @@ def deltayears(value):
     return value.total_seconds()/(60*60*24*365)
 
 def render(params, template, fp):
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="/"))
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="/"), undefined=jinja2.StrictUndefined)
     env.filters['dayofyear'] = dayofyear
     env.filters['deltayears'] = deltayears
     env.filters['dateformat'] = dateformat
@@ -97,12 +95,14 @@ def str2timedelta(s):
         delay = 30 * 12
     return(timedelta(days=delay))
 
-    
-def processFasta(datafile):
+sample_dd = lambda: dict()
+patient_dd = lambda: defaultdict(sample_dd)
+patients_dd = lambda: defaultdict(patient_dd)
+
+def processFasta(datafile, patients, nodata):
     '''
     Read sequences from a FASTA file (datafile) and create a nested data structure thet organizaes the sequences by patient and sample date.
     '''
-    patient = defaultdict(dict)
     
     # define a regex to extract the generation number from the fasta id string
     # we use this to provide tip dates to BEAST.
@@ -119,40 +119,33 @@ def processFasta(datafile):
             # if the sequence name ends with "_<digits>", assume this is a multiplicity indicator
             # and strip it off before converting the date.
             sampleDate = re.sub(r"_\d+$", '', sampleDate)
+            if nodata:
+                # fill the sequences with 'N'.  This creates beast config files
+                # without any actual sequence data but with dates and names of
+                # sequences intact.  This allows exploration of priors without
+                # the influence of real data.
+                record.seq = 'N' * len(record.seq)
             taxon = record
 
-            collectiondate = patient[sampleDate]
-            if not collectiondate:
-                collectiondate['taxa'] = []
-                collectiondate['date'] = datetime.strptime(sampleDate, '%Y/%m/%d')
-                collectiondate['delta'] = str2timedelta(timePoint)
+            patient = patients[patientId]
 
-            collectiondate['taxa'].append(taxon)
+            sample = patient[sampleDate]
+            if not sample:
+                sample['taxa'] = []
+                sample['date'] = datetime.strptime(sampleDate, '%Y/%m/%d')
+                sample['delta'] = str2timedelta(timePoint)
+
+            sample['taxa'].append(taxon)
     
-    if patientId is not None:
-        return(patientId, patient)
-    else:
+    if patientId is None:
         raise Exception('Empty fasta file - {}'.format(datafile))
 
 
-
-    
 
 def build_parser():
     """
     Build the command-line argument parser.
     """
-    def commaSplitter(str):
-        """
-        Argparse a comm-seperated list
-        """
-        # leave this here as a reminder of what I should do to make the argument parsing more robust
-
-        # if sqrt != int(sqrt):
-        #      msg = "%r is not a perfect square" % string
-        #      raise argparse.ArgumentTypeError(msg)
-        # return value
-        return str.split(',')
 
     def existing_file(fname):
         """
@@ -172,7 +165,16 @@ def build_parser():
             default="", dest='prefix')
     parser.add_argument('--outgroup', help='FASTA files for outgroup sequences',
             default=None, dest='outgroup', type=argparse.FileType('r'))
-    parser.add_argument('datafiles', nargs='+', help='FASTA input', type=existing_file)
+    parser.add_argument('--nodata', action='store_true', help='set all sequences to "N".  Useful for exploring prior distributions without data.')
+    class StoreNameValuePair(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            keyvalues = [ v for v in values if ('=' in v and not os.path.isfile(v)) ]
+            values = [ v for v in values if not v in keyvalues]
+            setattr(namespace, 'keyvalues', dict([kv.split('=') for kv in keyvalues ]))
+            setattr(namespace, self.dest, values)
+
+    
+    parser.add_argument('datafiles', nargs='+', help='FASTA input', action=StoreNameValuePair)
 
     return parser
 
@@ -185,9 +187,11 @@ def main(args=sys.argv[1:]):
 
     parser = build_parser()
     a = parser.parse_args()
-    
-    patients = dict([processFasta(datafile) for datafile in a.datafiles])
+    patients = patients_dd()
 
+    for datafile in a.datafiles:
+        processFasta(datafile, patients, nodata=a.nodata)
+    
     samples = [sample for p in patients.values() for sample in p.values()]
     dates = [s['date'] for s in samples]
 
@@ -200,6 +204,7 @@ def main(args=sys.argv[1:]):
                   outgroup=outgroup,
                   earliest_timepoint=earliest_timepoint,
                   latest_timepoint=latest_timepoint)
+    params.update(a.keyvalues)
 
     render(params, a.template, sys.stdout)
 

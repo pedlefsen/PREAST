@@ -123,16 +123,18 @@ def main(args=sys.argv[1:]):
 
     # calculate a 95% credible intervale (+- 1.96 stddev),
     # assuming treeheights are normally distributed.
-    doi = latest_timepoint - timedelta(days=365.0*toi)
-    doi_early = latest_timepoint - timedelta(days=365.0*(toi + 1.96*std))
-    doi_late = latest_timepoint - timedelta(days=365.0*(toi - 1.96*std))
-    
-    print('{},{},{}'.format(
-        datetime.strftime(doi, '%Y/%m/%d'),
-        datetime.strftime(doi_early, '%Y/%m/%d'),
-        datetime.strftime(doi_late, '%Y/%m/%d')))
-    #print(tbl)
+    # doi = latest_timepoint - timedelta(days=365.0*toi)
+    # doi_early = latest_timepoint - timedelta(days=365.0*(toi + 1.96*std))
+    # doi_late = latest_timepoint - timedelta(days=365.0*(toi - 1.96*std))
 
+    # print('{},{},{},{:.0f},{:.0f},{:.0f}'.format(
+    #     datetime.strftime(doi, '%Y/%m/%d'),
+    #     datetime.strftime(doi_early, '%Y/%m/%d'),
+    #     datetime.strftime(doi_late, '%Y/%m/%d'),
+    #     365.0*toi, 365.0*(toi + 1.96*std), 365.0*(toi - 1.96*std)))
+    print('{:.0f},{:.0f},{:.0f}'.format(
+        365.0*toi, 365.0*(toi + 1.96*std), 365.0*(toi - 1.96*std)))
+        #print(tbl)
 
     
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 
-# Founder Inference Bake-off #
+# PREAST - Founder Inference using PRANK and BEAST #
 
 To infer founder sequence(s) and time of infection:
 
@@ -18,7 +18,8 @@ Example usage:
 
 These scripts have dependencies on `prank`, `beast`, and a large number of `python` modules.
 
-A Linux binary of `prank` is included in the `bin/` directory.   A requirements.txt file lists all necessary python packages.
+A Linux binary of `prank` is included in the `bin/` directory.   `prank` uses `bppancestor` which is also included in  the `bin/` directory.
+A requirements.txt file lists all necessary python packages.
 Beast and the Beagle optimization library are available in `/apps`. Access these applications may be established through `module` definitiions.
 A python virtual environment is included with all necessary python packages preinstalled.
 
@@ -43,16 +44,12 @@ For example, the following commands will run the inference on a simulated alignm
 
 Uses Prank<sup>1</sup> to create a multiple sequence alignment and to estimate founder sequence.
 
-Uses Poisson goodness-of-fit test<sup>2,3</sup> to evaluate whether the sample is
-consistent with a single founder hypothesis.  Within a sample, only
-the earliest sequences are used to detect multiplicity.
-
-If multiple founders seem likely, the phylogenetic tree inferred by
+To infer multiple founders, the phylogenetic tree inferred by
 Prank is split at the root and the leaves on each half are used to
 infer separate founders.
 
 Time of infection is inferred with Beast<sup>4</sup>.  A strict clock and constant
-population size are used a priors.  Tree height is constrained to be
+population size are used as priors.  Tree height is constrained to be
 consistent with samples dates on the sequences.
 
 --------

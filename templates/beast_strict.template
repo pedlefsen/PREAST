@@ -144,7 +144,7 @@
   <!-- The strict clock (Uniform rates across branches)                        -->
   <strictClockBranchRates id="branchRates">
     <rate>
-      <parameter id="clock.rate" value="1.3E-5" lower="0.0"/>
+      <parameter id="clock.rate" value="{{rate}}" lower="0.0"/>
     </rate>
   </strictClockBranchRates>
 
@@ -243,20 +243,28 @@
   </operators>
 
   <!-- Define MCMC                                                             -->
-  <mcmc id="mcmc" chainLength="400000" autoOptimize="true" operatorAnalysis="10.ops">
+  <mcmc id="mcmc" chainLength="1000000" autoOptimize="true">
     <posterior id="posterior">
       <prior id="prior">
+	{% if (backoff|int) != 0 %}
+	<!-- lower={{latest_timepoint}} - {{earliest_timepoint}} = {{(latest_timepoint-earliest_timepoint)|deltayears}} -->
+	<!-- upper={{latest_timepoint}} - {{earliest_timepoint}} + {{backoff}} days -->
+
 	<uniformPrior
-	    lower="{{(latest_timepoint-earliest_timepoint)| deltayears}}" upper="{{((latest_timepoint-earliest_timepoint)+timedelta(days=120)) | deltayears}}">
+	    lower="{{(latest_timepoint-earliest_timepoint)|deltayears}}"
+	    upper="{{((latest_timepoint-earliest_timepoint)+timedelta(days=(backoff|int)))|deltayears}}">
 	  <parameter idref="treeModel.rootHeight"/>
 	</uniformPrior >
+	{% else %}
+	<!-- Skipping prior on treeModel.rootHeight because backoff == 0 -->
+	{% endif %}
 	<logNormalPrior mean="1.0" stdev="1.25" offset="0.0" meanInRealSpace="false">
 	  <parameter idref="kappa"/>
 	</logNormalPrior>
 	<uniformPrior lower="0.0" upper="1.0">
 	  <parameter idref="frequencies"/>
 	</uniformPrior>
-	<logNormalPrior mean="1.3E-5" stdev="1.0" offset="0.0" meanInRealSpace="true">
+	<logNormalPrior mean="{{rate}}" stdev="1.0" offset="0.0" meanInRealSpace="true">
 	  <parameter idref="clock.rate"/>
 	</logNormalPrior>
 	<oneOnXPrior>
