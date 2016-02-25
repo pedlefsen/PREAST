@@ -1,13 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-
-# read in the csv
-# pick out specific columns
-# skip burnin period
-# calculate mean.
-
-import sys
-import argparse
-import csv
+import pandas as pd
 import numpy as np
 
 from SCons.Action import ActionFactory
@@ -15,60 +9,10 @@ import SCons.Util
 import os
 import time
 
-def parse_log(fp, burnin=0.9):
-    """
-    generator function for parsing ancestral founder sequences from BEAST trait file.
-
-    The file expected to be a set of ancestral founder sequences from Beast.
-    Each non-comment line consists of an iteration count followed by some number or quoted founder sequences.
-    """
-
-    # first count how many sequences are in the file so we can figure out how many to skip for burn-in.
-    count = 0
-    for line in csv.reader(filter(lambda row: row[0]!='#', fp), delimiter='\t'):
-        count += 1
-
-    skip = round(count * burnin)
-    
-    # Reposition pointer at the beginning once again
-    fp.seek(0, 0);
-    for line in csv.DictReader(filter(lambda row: row[0]!='#', fp), delimiter='\t'):
-        if skip > 0:
-            skip -= 1
-            continue
-        yield line
-
-
-def logfile_iter(fh, column, burnin):
-    """
-    iterate over BEAST log file
-
-    This routine knows how to retrieve and iterate over logfile
-    entries.
-
-    :param path: string name of directory where sequence files can be found.
-    :returns: iterator over values
-    :rtype:
-    """
-
-    # NB parse_log() will skip a burn-in period
-    for row in parse_log(fh, burnin=burnin):
-        yield row[column]
-
-def build_parser():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--burnin', type=int, help='skip this many entries as a burn-in period (default: no burn-in period)',
-            action='store', default=0, dest='burnin')
-    parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
-                        default=sys.stdin)
-    return parser
 
 def extract_posterior(path, column='clock.rate', burnin=0.4):
-    with open(str(path), 'rb') as fp:
-        generator = logfile_iter(fp, column, burnin)
-        values = np.array(list(generator)).astype(np.float)
-    return np.mean(values)
-
+    df = pd.read_csv(path, sep='\t', comment='#')
+    return df[column][int(len(df.index)*burnin):].mean()
 
 
 # Running commands on the cluster sometimes has the unfortunate side-effect of
@@ -88,9 +32,6 @@ def extract_posterior(path, column='clock.rate', burnin=0.4):
 #
 # This will cause the execution to pause after running 'some-command' until the target shows up on the local machine.
 # The target will be polled on a 2-second interval, and the command will fail if the target does not show up within about 10 seconds.
-
-
-
 
 def get_paths_str(dest):
     # If dest is a list, we need to manually call str() on each element
