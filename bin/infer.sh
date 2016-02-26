@@ -24,9 +24,10 @@ export backoff=0
 
 function usage() {
 cat << EOF
-Usage: ${0##*/} [-v] [-d] [-p <prefix>] <sequences.fasta>
+Usage: ${0##*/} [options] <sequences.fasta>
 Infer founders and timing for HIV samples.
 
+Options are,
     -h,--help		display this help and exit
     -v,--verbose	verbose mode.  Echo description of each command being run.
     -k,--keep		keep temporary files. Useful in conjunction with -v to debug the process.
@@ -39,6 +40,18 @@ Infer founders and timing for HIV samples.
 			'toi' is a comma-seperates pair of integers representing the 
 			lower- and upper-bounds on time of infection (in days) prior to 
 			the most recent sample date as specified in the sequence names.
+
+Output:
+    Produces a 'infer_toi.csv' with an estimate of time of infection
+    measured in dayssince since latest sample date (aka the height of
+    the inferred geneaology).  Alos produces 'infer_single.fa' and
+    'infer_multiple.fa' which are reconstructions of the founder
+    viruses for putative single or multiple founders.
+
+Examples:
+    $ bin/infer.sh -v  bakeoff_analysis_rv217_40094_6M_NFLG_removeRecombinedSequences.fasta  
+
+    $ bin/infer.sh -v  --toi 150,200 bakeoff_analysis_rv217_40094_6M_NFLG_removeRecombinedSequences.fasta  
 EOF
 
 }
