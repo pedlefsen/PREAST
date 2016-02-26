@@ -27,10 +27,18 @@ cat << EOF
 Usage: ${0##*/} [-v] [-d] [-p <prefix>] <sequences.fasta>
 Infer founders and timing for HIV samples.
 
-    -h          display this help and exit
-    -v		verbose mode.  Echo description of each command being run.
-    -k		keep temporary files. Useful in conjunction with -v to debug the process.
-    -p <prefix>:	supply a prefix to use for output files (default: "infer_").
+    -h,--help		display this help and exit
+    -v,--verbose	verbose mode.  Echo description of each command being run.
+    -k,--keep		keep temporary files. Useful in conjunction with -v to debug the process.
+
+    -p <prefix>,
+    -prefix <prefix>:	supply a prefix to use for output files (default: "infer_").
+
+    -t <toi>,
+    -toi <toi>:		supply prior limits on time of infection (default: none).
+			'toi' is a comma-seperates pair of integers representing the 
+			lower- and upper-bounds on time of infection (in days) prior to 
+			the most recent sample date as specified in the sequence names.
 EOF
 
 }
