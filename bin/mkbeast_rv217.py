@@ -189,6 +189,22 @@ def main(args=sys.argv[1:]):
     a = parser.parse_args()
     patients = patients_dd()
 
+    if 'toi' in a.keyvalues:
+        toi = a.keyvalues['toi']
+        toi = toi.split(',')
+        if len(toi) != 2:
+            print('Bad toi value - expected two integers values separated by comma', file=sys.stderr);
+            sys.exit(1)
+        toi = [int(t) for t in toi]
+        if sum([t < 0 for t in toi]) > 0:
+            print('Bad toi value - toi priors must be strictly positive values', file=sys.stderr);
+            sys.exit(1)
+        if toi[0] >= toi[1] :
+            print('Bad toi value - first toi value must be less than second', file=sys.stderr);
+            sys.exit(1)
+        a.keyvalues['toi'] = [timedelta(days=int(days)) for days in toi]
+
+
     for datafile in a.datafiles:
         processFasta(datafile, patients, nodata=a.nodata)
     

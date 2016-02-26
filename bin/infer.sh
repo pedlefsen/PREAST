@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-set -e # exit on error
+
+# Initialize our own variables:
+output_file=""
+verbose=false
+keep=false
+prefix="infer_"
 
 # see http://unix.stackexchange.com/a/84980/100709
 # for a mktmpdir that works on both linux and OS X
@@ -59,39 +64,34 @@ export PATH=${DIR}:${PATH}
 export TEMPLATES=${DIR}/../templates
 files=()
 
-# Initialize our own variables:
-output_file=""
-verbose=false
-keep=false
-prefix="infer_"
+# using getopt -- http://stackoverflow.com/a/7948533/1135316
+TEMP=`getopt -o hvkp:t: --long help,verbose,keep,prefix:,toi: \
+             -n 'infer' -- "$@"`
 
-OPTIND=1 # Reset is necessary if getopts was used previously in the script.  It is a good idea to make this local in a function.
-while getopts "hvkp:" opt; do
-    case "$opt" in
-        h)
-            usage
-            exit 0
-            ;;
-        v)  verbose=true
-            ;;
-        k)  keep=true
-            ;;
-        p)  prefix="$OPTARG"
-            ;;
-        '?')
-            usage >&2
-            exit 1
-            ;;
-    esac
+if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+while true; do
+  case "$1" in
+    -h | --help ) usage; exit 0 ;;
+    -v | --verbose ) verbose=true; shift ;;
+    -k | --keep ) keep=true; shift ;;
+    -p | --prefix ) prefix="$2"; shift 2 ;;
+    --toi ) toi="$2"; shift 2 ;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
 done
-shift "$((OPTIND-1))" # Shift off the options and optional --.
 
 files=$@
-
 if [[ ${#files[@]} == 0 ]]; then
     usage >&2
     exit 1
 fi
+
+set -e # exit on error
 
 mkdir -p $(dirname ${prefix})
 
@@ -146,9 +146,12 @@ EOF
     
 	
     # inserts sample sequences into a beast configurarion file.
-    # parses date fromt he sequence ids and converts to tip date for BEAST
+    # parses date from the sequence ids and converts to tip date for BEAST
     echotty "Make BEAST config file..."
-    echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template rate=${rate} backoff=${backoff} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
+
+    # note: ${toi:+toi='${toi}'} expands to toi='${toi}' if the toi value is set, otherwise it expands to nothing.
+    # http://wiki.bash-hackers.org/syntax/pe#use_an_alternate_value
+    echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${toi:+toi='${toi}'} ${rate:+rate='${rate}'} ${backoff:+backoff='${backoff}'} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
 
     # sigh...if using the -working option of beast, the configuration file must be specified with an absoute path.
     echotty "Running BEAST..."

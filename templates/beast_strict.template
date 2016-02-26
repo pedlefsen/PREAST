@@ -246,17 +246,16 @@
   <mcmc id="mcmc" chainLength="1000000" autoOptimize="true">
     <posterior id="posterior">
       <prior id="prior">
-	{% if (backoff|int) != 0 %}
-	<!-- lower={{latest_timepoint}} - {{earliest_timepoint}} = {{(latest_timepoint-earliest_timepoint)|deltayears}} -->
-	<!-- upper={{latest_timepoint}} - {{earliest_timepoint}} + {{backoff}} days -->
-
+	{% if toi is defined %}
+	<!-- toi is a two-element array  -->
 	<uniformPrior
-	    lower="{{(latest_timepoint-earliest_timepoint)|deltayears}}"
-	    upper="{{((latest_timepoint-earliest_timepoint)+timedelta(days=(backoff|int)))|deltayears}}">
+	    lower="{{toi[0]|deltayears}}"
+	    upper="{{toi[1]|deltayears}}">
 	  <parameter idref="treeModel.rootHeight"/>
 	</uniformPrior >
 	{% else %}
-	<!-- Skipping prior on treeModel.rootHeight because backoff == 0 -->
+	<!-- Skipping prior on treeModel.rootHeight because toi prior
+	     is undefined -->
 	{% endif %}
 	<logNormalPrior mean="1.0" stdev="1.25" offset="0.0" meanInRealSpace="false">
 	  <parameter idref="kappa"/>
