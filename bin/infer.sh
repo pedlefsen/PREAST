@@ -33,10 +33,10 @@ Options are,
     -k,--keep		keep temporary files. Useful in conjunction with -v to debug the process.
 
     -p <prefix>,
-    -prefix <prefix>:	supply a prefix to use for output files (default: "infer_").
+    --prefix <prefix>:	supply a prefix to use for output files (default: "infer_").
 
     -t <toi>,
-    -toi <toi>:		supply prior limits on time of infection (default: none).
+    --toi <toi>:		supply prior limits on time of infection (default: none).
 			'toi' is a comma-seperates pair of integers representing the 
 			lower- and upper-bounds on time of infection (in days) prior to 
 			the most recent sample date as specified in the sequence names.
