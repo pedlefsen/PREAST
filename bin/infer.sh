@@ -4,6 +4,7 @@
 output_file=""
 verbose=false
 keep=false
+deduplicate=false
 prefix="infer_"
 
 # see http://unix.stackexchange.com/a/84980/100709
@@ -31,12 +32,13 @@ Options are,
     -h,--help		display this help and exit
     -v,--verbose	verbose mode.  Echo description of each command being run.
     -k,--keep		keep temporary files. Useful in conjunction with -v to debug the process.
+    -d,--deduplicate	collapse duplicate sequence.
 
     -p <prefix>,
     --prefix <prefix>:	supply a prefix to use for output files (default: "infer_").
 
     -t <toi>,
-    --toi <toi>:		supply prior limits on time of infection (default: none).
+    --toi <toi>:	supply prior limits on time of infection (default: none).
 			'toi' is a comma-seperates pair of integers representing the 
 			lower- and upper-bounds on time of infection (in days) prior to 
 			the most recent sample date as specified in the sequence names.
@@ -86,7 +88,7 @@ export TEMPLATES=${DIR}/../templates
 files=()
 
 # using getopt -- http://stackoverflow.com/a/7948533/1135316
-TEMP=`getopt -o hvkp:t: --long help,verbose,keep,prefix:,toi: \
+TEMP=`getopt -o hvkdp:t: --long help,verbose,keep,deduplicate,prefix:,toi: \
              -n 'infer' -- "$@"`
 
 if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
@@ -100,7 +102,8 @@ while true; do
     -v | --verbose ) verbose=true; shift ;;
     -k | --keep ) keep=true; shift ;;
     -p | --prefix ) prefix="$2"; shift 2 ;;
-    --toi ) toi="$2"; shift 2 ;;
+    -d | --deduplicate ) deduplicate=true; shift;;
+    -t | --toi ) toi="$2"; shift 2 ;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -112,6 +115,10 @@ if [[ ${#files[@]} == 0 ]]; then
     exit 1
 fi
 
+DEDUP="cat"
+if [[ "${deduplicate}" = true ]]; then
+    DEDUP="dedup.py"
+fi
 set -e # exit on error
 
 mkdir -p $(dirname ${prefix})
@@ -120,7 +127,7 @@ for sample in "${files[@]}"
 do
     label=$(basename $sample)
     label=${label%.*}
-    echocmd "dedup.py ${sample} >${outdir}/${label}.fa"
+    echocmd "${DEDUP} ${sample} >${outdir}/${label}.fa"
 
     echotty "Creating alignment with PRANK..." 
     echocmd "prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
