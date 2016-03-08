@@ -13,79 +13,54 @@
 <!-- working dir:	{{workdir}} -->
 
 <beast>
+
 {%- set taxon_count = [0] -%}
-{%- for patient in patients.values() -%}
-{%- for visit in patient.values() -%}
-{%- set n = visit.taxa|length -%}
-{%-if taxon_count.append(taxon_count.pop() + visit.taxa|length ) -%}{%- endif -%} 
+{% for visit,byseq in sequences.iteritems() -%}
+{% for seq,idset in byseq.iteritems() -%}
+{%-if taxon_count.append(taxon_count.pop() + idset|length ) -%}{%- endif -%} 
 {%-endfor-%}
 {%-endfor%}
 
-  <!-- The list of taxa to be analysed (can also include dates/ages).          -->
-  <!-- ntaxa={{taxon_count[0]}} -->
-
-  <!-- The overall taxa includes all samples, plus posssibly an outgroup  -->
+  <!-- The overall taxa includes all samples,  -->
   <taxa id="taxa">
-    {% for taxon in outgroup -%}
-    <taxon id="{{taxon.id}}">
-      <date value="0" direction="forwards" units="days"/>
+    {% for visit,byseq in sequences.iteritems() -%}
+    {% for seq,idset in byseq.iteritems() -%}
+    {% for id in idset -%}
+    <taxon id="{{id}}">
+          <date value="{{visit | dayofyear }}" direction="forwards" units="years"/>
     </taxon>
-    {%-endfor%}
-    {% for pid, patient in patients.iteritems() -%}
-    {% for vid,visit in patient.iteritems() -%}
-    {% for taxon in visit.taxa -%}
-    <taxon id="{{taxon.id}}">
-      <date value="{{visit.date | dayofyear }}" direction="forwards" units="years"/>
-    </taxon>
-    {% endfor%}
+    {%endfor%}
     {%-endfor%}
     {%-endfor%}
   </taxa>
 
-  <!-- Make a taxa containing just patient samples, without the outgroup. -->
-  <!-- We will infer the ancestral sequence at the root of this taxa. -->
-  <taxa id="taxa(patients)">
-    {% for pid, patient in patients.iteritems() -%}
-    {% for vid,visit in patient.iteritems() -%}
-    {% for taxon in visit.taxa -%}
-    <taxon idref="{{taxon.id}}"/>
-    {% endfor%}
-    {%-endfor%}
-    {%-endfor%}
+  {%-if monophyly -%}
+  {%- set uniqueid = 1 -%}
+  {% for visit,byseq in sequences.iteritems() %}
+  {% for seq,idset in byseq.iteritems() %}
+  <taxa id="taxa({{visit}}.{{uniqueid}})">
+    {% for id in idset -%}
+    <taxon idref="{{id}}"/>
+    {% endfor-%}
   </taxa>
-
-  <!-- Make seperate taxa for each patent visit. -->
-  <!-- Later we will mark some (but not al) of these tax as monophyletic. -->
-  {% for pid,patient in patients.iteritems() -%}
-  {% for vid,visit in patient.iteritems() -%}
-  <taxa id="taxa({{pid}}.{{vid}})">
-    {% for taxon in visit.taxa -%}
-    <taxon idref="{{taxon.id}}"/>
-    {% endfor%}
-  </taxa>
+  {%- set uniqueid = uniqueid + 1 -%}
+  {%endfor%}
   {%-endfor%}
-  {%-endfor%}
-
+  {%- endif -%} 	
 
   <!-- The sequence alignment (each sequence refers to a taxon above).         -->
   <!-- ntax=${taxon_count} nchar=${site_count} -->
   <alignment id="alignment" dataType="nucleotide">
-    {% for taxon in outgroup -%}
+    {% for visit,byseq in sequences.iteritems() -%}
+    {% for seq,idset in byseq.iteritems() -%}
+    {% for id in idset -%}
     <sequence>
-      <taxon idref="{{taxon.id}}"/>
-      {{taxon.seq}}
+      <taxon idref="{{id}}"/>
+      {{seq}}
     </sequence>
     {%-endfor%}
-    {% for pid,patient in patients.iteritems() -%}
-    {% for vid,visit in patient.iteritems() -%}
-    {% for taxon in visit.taxa -%}
-    <sequence>
-      <taxon idref="{{taxon.id}}"/>
-      {{taxon.seq}}
-    </sequence>
-    {% endfor%}
-    {%- endfor%}
-    {%- endfor%}
+    {%-endfor%}
+    {%-endfor%}
   </alignment>
 
   <!-- The unique patterns from 1 to end                                       -->
@@ -105,10 +80,23 @@
   </exponentialGrowth>
   
   <!-- define a coalescent tree that is consistent with the prior on tree height -->
-  <coalescentTree id="startingTree" rootHeight="{{((latest_timepoint-earliest_timepoint)+timedelta(days=2))| deltayears}}"> 
+  <coalescentSimulator id="startingTree">
     <taxa idref="taxa"/>
     <exponentialGrowth idref="exponential"/>
-  </coalescentTree>
+    {%-if monophyly -%}
+    {%- set uniqueid = 1 -%}
+    {% for visit,byseq in sequences.iteritems() %}
+    {% for seq,idset in byseq.iteritems() %}
+    <coalescentSimulator>
+      <taxa idref="taxa({{visit}}.{{uniqueid}})"/>
+      <exponentialGrowth idref="exponential"/>
+    </coalescentSimulator>
+    {%- set uniqueid = uniqueid + 1 -%}
+    {%  endfor %}
+    {%- endfor %}
+    {%- endif -%}
+    
+  </coalescentSimulator>
 
   <!-- Generate a tree model                                                   -->
   <treeModel id="treeModel">
@@ -130,6 +118,22 @@
     </mrca>
     <treeModel idref="treeModel"/>
   </tmrcaStatistic>
+  {%-if monophyly -%}
+  {%- set uniqueid = 1 -%}
+  {% for visit,byseq in sequences.iteritems() %}
+  {% for seq,idset in byseq.iteritems() %}
+  <monophylyStatistic id="monophyly({{visit}}.{{uniqueid}})">
+    <mrca>
+      <taxa idref="taxa({{visit}}.{{uniqueid}})"/>
+    </mrca>
+    <treeModel idref="treeModel"/>
+  </monophylyStatistic>
+  
+  {%- set uniqueid = uniqueid + 1 -%}
+  {%endfor%}
+  {%-endfor%}
+  {%- endif -%} 	
+
 
   <!-- Generate a coalescent likelihood                                        -->
   <coalescentLikelihood id="coalescent">
@@ -273,6 +277,17 @@
 	  <parameter idref="exponential.growthRate"/>
 	</laplacePrior>
 	<coalescentLikelihood idref="coalescent"/>
+	{%-if monophyly -%}
+	{%- set uniqueid = 1 -%}
+	{% for visit,byseq in sequences.iteritems() %}
+	{% for seq,idset in byseq.iteritems() %}
+	<booleanLikelihood id="likelihood({{visit}}.{{uniqueid}})">
+	  <monophylyStatistic idref="monophyly({{visit}}.{{uniqueid}})"/>
+	</booleanLikelihood>
+	{%- set uniqueid = uniqueid + 1 -%}
+	{%endfor%}
+	{%-endfor%}
+	{%- endif -%} 	
       </prior>
       <likelihood id="likelihood">
 	<ancestralTreeLikelihood idref="treeLikelihood"/>
@@ -316,7 +331,6 @@
       <coalescentLikelihood idref="coalescent"/>
     </log>
 
-    write tree log to file
     <logTree id="treeFileLog" logEvery="400" nexusFormat="true" fileName="beastout.trees" sortTranslationTable="true">
       <treeModel idref="treeModel"/>
       <trait name="rate" tag="rate">
@@ -336,7 +350,7 @@
 	<treeModel idref="treeModel"/>
 	<ancestralTreeLikelihood idref="treeLikelihood"/>
 	<mrca>
-	  <taxa idref="taxa(patients)"/>
+	  <taxa idref="taxa"/>
 	</mrca>
       </ancestralTrait>
     </log>

@@ -99,47 +99,31 @@ sample_dd = lambda: dict()
 patient_dd = lambda: defaultdict(sample_dd)
 patients_dd = lambda: defaultdict(patient_dd)
 
-def processFasta(datafile, patients, nodata):
-    '''
-    Read sequences from a FASTA file (datafile) and create a nested data structure thet organizaes the sequences by patient and sample date.
-    '''
-    
-    # define a regex to extract the generation number from the fasta id string
-    # we use this to provide tip dates to BEAST.
-    patientId = None
-    with open(datafile, "rU") as handle:
-    
+byseq_dd = lambda: defaultdict(set)
+bydate_dd = lambda: defaultdict(byseq_dd)
+
+
+def processFasta(file):
+    bydate = bydate_dd()
+    with open(file, "rU") as fh:
         # for each fasta sequence in the data file, create a taxon node and a sequence node.
-        for record in SeqIO.parse(handle, "fasta") :
-            # extract the patient id and generation from the fasta name.
-            fields = record.id.split('|')
+        for r in SeqIO.parse(fh, "fasta"):
+            fields = r.id.split('|')
             patientId = fields[0]
             timePoint = fields[1] if len(fields) > 0 else "0"
             sampleDate = fields[4] if len(fields) > 3 else "0"
             # if the sequence name ends with "_<digits>", assume this is a multiplicity indicator
             # and strip it off before converting the date.
             sampleDate = re.sub(r"_\d+$", '', sampleDate)
-            if nodata:
-                # fill the sequences with 'N'.  This creates beast config files
-                # without any actual sequence data but with dates and names of
-                # sequences intact.  This allows exploration of priors without
-                # the influence of real data.
-                record.seq = 'N' * len(record.seq)
-            taxon = record
+            sampleDate = datetime.strptime(sampleDate, '%Y/%m/%d')
 
-            patient = patients[patientId]
+            byseq = bydate[sampleDate]
+            byseq[str(r.seq)].add(str(r.id))
 
-            sample = patient[sampleDate]
-            if not sample:
-                sample['taxa'] = []
-                sample['date'] = datetime.strptime(sampleDate, '%Y/%m/%d')
-                sample['delta'] = str2timedelta(timePoint)
+    if not bydate:
+        raise Exception('Empty fasta file - {}'.format(file))
 
-            sample['taxa'].append(taxon)
-    
-    if patientId is None:
-        raise Exception('Empty fasta file - {}'.format(datafile))
-
+    return bydate
 
 
 def build_parser():
@@ -159,12 +143,10 @@ def build_parser():
 
     parser.add_argument('--template', '-t', help='templated BEAST XML config',
             required=True, dest='template')
-    parser.add_argument('--fasta', help='produce a FASTA file (default: produce XML file)',
-            action='store_true', default=False, dest='createFasta')
     parser.add_argument('--prefix', help='Specify a prefix for all output log filename',
             default="", dest='prefix')
-    parser.add_argument('--outgroup', help='FASTA files for outgroup sequences',
-            default=None, dest='outgroup', type=argparse.FileType('r'))
+    parser.add_argument('--mono', '-m', help='Duplicate sequences from the sametimepoint are marked as monophyletic', action='store_true',
+            default=False, dest='mono')
     parser.add_argument('--nodata', action='store_true', help='set all sequences to "N".  Useful for exploring prior distributions without data.')
     class StoreNameValuePair(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
@@ -174,7 +156,7 @@ def build_parser():
             setattr(namespace, self.dest, values)
 
     
-    parser.add_argument('datafiles', nargs='+', help='FASTA input', action=StoreNameValuePair)
+    parser.add_argument('file', nargs='+', help='FASTA input', action=StoreNameValuePair)
 
     return parser
 
@@ -187,7 +169,6 @@ def main(args=sys.argv[1:]):
 
     parser = build_parser()
     a = parser.parse_args()
-    patients = patients_dd()
 
     if 'toi' in a.keyvalues:
         toi = a.keyvalues['toi']
@@ -205,21 +186,15 @@ def main(args=sys.argv[1:]):
         a.keyvalues['toi'] = [timedelta(days=int(days)) for days in toi]
 
 
-    for datafile in a.datafiles:
-        processFasta(datafile, patients, nodata=a.nodata)
-    
-    samples = [sample for p in patients.values() for sample in p.values()]
-    dates = [s['date'] for s in samples]
+    bydate = processFasta(a.file[0])
 
-    earliest_timepoint = min([ s['date'] - s['delta'] for s in samples])
-    latest_timepoint = max(dates)
+    earliest_timepoint = min(bydate.keys())
+    latest_timepoint = max(bydate.keys())
     
-    outgroup = list(SeqIO.parse(a.outgroup, "fasta")) if a.outgroup else []
-
-    params = dict(patients=patients,
-                  outgroup=outgroup,
-                  earliest_timepoint=earliest_timepoint,
-                  latest_timepoint=latest_timepoint)
+    params = dict(sequences=bydate,
+                      earliest_timepoint = earliest_timepoint,
+                      latest_timepoint = latest_timepoint,
+                      monophyly=a.mono)
     params.update(a.keyvalues)
 
     render(params, a.template, sys.stdout)
