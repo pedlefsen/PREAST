@@ -6,12 +6,13 @@ Scons file for driving Nestly to create a hierarchy of directories
 and control files for exploration of various BEAST parameter settings.
 
 '''
-
+from __future__ import print_function
 
 
 import os
 import os.path
 import glob
+import pandas as pd
 
 from nestly import Nest
 from nestly.scons import SConsWrap
@@ -44,34 +45,41 @@ env['SANTAJAR']= os.path.abspath('../lib/santa.jar')
 env['venv'] = '../venv'
 env.PrependENVPath('PATH', os.path.join(env['venv'], 'bin'))
 
-samples= list(enumerate(glob.glob('../*.fasta')))
+samples= [ '../rv217_anon_1w_44.fasta',
+           '../caprisa002_pda_gp120_1m6m_aln.fasta',
+           '../bakeoff_analysis_rv217_40265_1M6M_NFLG_removeHypermutatedSequences_removeRecombinedSequences.fasta',
+           '../bakeoff_analysis_rv217_40094_6M_NFLG_removeRecombinedSequences.fasta',
+           '../bakeoff_analysis_rv217_40265_1M_NFLG.fasta' ]
 
+# write map from integer to fasta filename to "runs/filekey.txt"
 @w.add_target_with_env(env)
 def build_key(env, outdir, c):
     target = os.path.join(outdir, 'filekey.txt')
     def writekey(target, source, env):
         with open(str(target[0]), "w") as fp:
-            for x in samples:
-                fp.write("{}\t{}\n".format(x[0],x[1]))
+            for i,x in enumerate(samples):
+                fp.write("{}\t{}\n".format(i,x))
         return None
     return env.Command(target, None, writekey)
 
 
-n.add('sample', samples, label_func=lambda v: str(v[0]))	
+n.add('sample', enumerate(samples), label_func=lambda v: str(v[0]))	
 
 # deduplicate sequences
 @w.add_target_with_env(env)
 def deduplicate(env, outdir, c):
     target = os.path.join(outdir, 'alignment.fa')
-        
-    cmd = "dedup.py ${SOURCES} >${TARGET}; seqmagick info ${TARGET}"
+
+    # was running dedup.py
+    cmd = "cat ${SOURCES} >${TARGET} && seqmagick info ${TARGET}"
     return env.Command(target,
                        [ c['sample'][1]],
                        cmd)
 
 
-n.add('rate', [1.3E-5,  1.62E-2], label_func=lambda v: "rate_{}".format(v))
-n.add('backoff',[0, 120, 5000, 50000], label_func=lambda v: "backoff_{}".format(v))
+n.add('clock_rate', [1.3E-5,  1.62E-2], label_func=lambda v: "rate_{}".format(v))
+# n.add('backoff',[0, 120, 5000, 50000], label_func=lambda v: "backoff_{}".format(v))
+n.add('backoff',[120], label_func=lambda v: "backoff_{}".format(v))
 n.add('nodata',[True, False], label_func=lambda v: "nodata" if v else "data")
 
 
@@ -81,22 +89,21 @@ n.add('nodata',[True, False], label_func=lambda v: "nodata" if v else "data")
 def config_beast(env, outdir, c):
     target = os.path.join(outdir, 'beast_in.xml')
         
-    cmd = ("mkbeast_rv217.py " + ("--nodata" if c['nodata'] else "") + " --template  ${SOURCES[0]} rate=${rate} backoff=${backoff} ${SOURCES[1]}  >${TARGET}")
+    cmd = ("mkbeast_rv217.py " + ("--nodata" if c['nodata'] else "") + " --template  ${SOURCES[0]} --settoi default_rate=${clock_rate} backoff=${backoff} ${SOURCES[1]}  >${TARGET}")
 
     return env.Command(target,
-                       [ 'beast_strict.template', c['deduplicate'] ],
+                       [ '../templates/beast_strict.template', c['deduplicate'] ],
                        cmd)
 
 
 @w.add_target_with_env(env)
 def runbeast(env, outdir, c):
-    target = [ os.path.join(outdir, 'ancestralSequences.log'),
-               os.path.join(outdir, 'beastout.log'),
+    target = [ os.path.join(outdir, 'beastout.log'),
                os.path.join(outdir, 'beastout.trees'),
                os.path.join(outdir, 'beastcmd.log') ]
     return env.Command(target,
                        c['config_beast'],
-                       [ "srun --output=srun.log beast -working -overwrite -beagle " + os.path.abspath(str(c['config_beast'][0])) + " >${TARGETS[3]} 2>&1",
+                       [ "srun --output=srun.log beast -working -overwrite -beagle " + os.path.abspath(str(c['config_beast'][0])) + " >${TARGETS[2]} 2>&1",
                          Wait(target) ])
 
 
@@ -107,6 +114,15 @@ def extract_toi(env, outdir, c):
                        [ c['runbeast'][1], c['deduplicate']  ],
                        "../bin/posterior_toi.py ${SOURCES[0]} ${SOURCES[1]}  >${TARGET}")
 
+@w.add_target_with_env(env)
+def extract_params(env, outdir, c):
+    target = [ os.path.join(outdir, 'params.json') ]
+    return env.Command(target,
+                       [ c['runbeast'][1] ],
+                       "../bin/extract_params.py ${SOURCES[0]} >${TARGET}")
+
+
+
 # create a second beast configuration that incorporates knowledge gained from the first beats run.
 # Specifically, we extract the rate parameter from the posterior distribution of clock.rate.
 @w.add_target_with_env(env)
@@ -115,31 +131,21 @@ def config_beast2(env, outdir, c):
         return None
     target = os.path.join(outdir, 'experimental', 'beast_in.xml')
 
-
-    # Extract the posterior clock rate form the earlier BEAST run whose tree height was constrained.
-    # Use the extracted clock.rate to inform the prior distribution of clock rate for a BEAST run with an unconstrained tree height.
-    def extract_clock_rate(target, source, env):
-        rate = extract_posterior(source[2], 'clock.rate', 0.4)
-        cmd = "mkbeast_rv217.py --template  ${SOURCES[0]} rate=" + str(rate) + " backoff=0 ${SOURCES[1]}  >${TARGET}"
-        cmd = scons_subst(cmd, env, target=target, source=source)
-        env.Execute(cmd)
-        return None
-    
+    cmd = "mkbeast_rv217.py --template ${SOURCES[0]} --params ${SOURCES[1]} backoff=0 ${SOURCES[2]}  >${TARGET}"
     return env.Command(target,
-                       [ 'beast_strict.template', c['deduplicate'], c['runbeast'][1]],
-                       extract_clock_rate)
+                       [ '../templates/beast_strict.template', c['extract_params'], c['deduplicate'] ],
+                       cmd)
 
 @w.add_target_with_env(env)
 def runbeast2(env, outdir, c):
     if c['nodata'] or c['backoff'] != 120:
         return None
     outdir = os.path.join(outdir, 'experimental')
-    target = [ os.path.join(outdir, 'ancestralSequences.log'),
-               os.path.join(outdir, 'beastout.log'),
+    target = [ os.path.join(outdir, 'beastout.log'),
                os.path.join(outdir, 'beastout.trees'),
                os.path.join(outdir, 'beastcmd.log') ]
     src = os.path.abspath(str(c['config_beast2'][0]))
-    cmd = "srun --output=srun.log beast -working -overwrite -beagle "+ src + " >${TARGETS[3]} 2>&1"
+    cmd = "srun --output=srun.log beast -working -overwrite -beagle "+ src + " >${TARGETS[2]} 2>&1"
         
     return env.Command(target, c['config_beast2'], [cmd, Wait(target)])
 

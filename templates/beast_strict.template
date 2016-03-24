@@ -26,11 +26,6 @@
 
   <!-- The overall taxa includes all samples, plus posssibly an outgroup  -->
   <taxa id="taxa">
-    {% for taxon in outgroup -%}
-    <taxon id="{{taxon.id}}">
-      <date value="0" direction="forwards" units="days"/>
-    </taxon>
-    {%-endfor%}
     {% for pid, patient in patients.iteritems() -%}
     {% for vid,visit in patient.iteritems() -%}
     {% for taxon in visit.taxa -%}
@@ -42,8 +37,6 @@
     {%-endfor%}
   </taxa>
 
-  <!-- Make a taxa containing just patient samples, without the outgroup. -->
-  <!-- We will infer the ancestral sequence at the root of this taxa. -->
   <taxa id="taxa(patients)">
     {% for pid, patient in patients.iteritems() -%}
     {% for vid,visit in patient.iteritems() -%}
@@ -70,12 +63,6 @@
   <!-- The sequence alignment (each sequence refers to a taxon above).         -->
   <!-- ntax=${taxon_count} nchar=${site_count} -->
   <alignment id="alignment" dataType="nucleotide">
-    {% for taxon in outgroup -%}
-    <sequence>
-      <taxon idref="{{taxon.id}}"/>
-      {{taxon.seq}}
-    </sequence>
-    {%-endfor%}
     {% for pid,patient in patients.iteritems() -%}
     {% for vid,visit in patient.iteritems() -%}
     {% for taxon in visit.taxa -%}
@@ -100,7 +87,15 @@
       <parameter id="exponential.popSize" value="3.1" lower="0.0"/>
     </populationSize>
     <growthRate>
+      <!-- Initial value of exponential.growthRate -->
+      {% if exponential_growthRate is defined %}
+      <!-- exponential.growthRate is fixed value based on previously run posterior. -->
+      <parameter id="exponential.growthRate"
+		 value="{{exponential_growthRate}}"/>
+      {% else %}
+      <!-- exponential.growthRate is constrained only by prior distribution -->
       <parameter id="exponential.growthRate" value="0.0031"/>
+      {% endif %}
     </growthRate>
   </exponentialGrowth>
   
@@ -144,7 +139,7 @@
   <!-- The strict clock (Uniform rates across branches)                        -->
   <strictClockBranchRates id="branchRates">
     <rate>
-      <parameter id="clock.rate" value="{{rate}}" lower="0.0"/>
+      <parameter id="clock.rate" value="{{clock_rate|default(default_rate)}}" lower="0.0"/>
     </rate>
   </strictClockBranchRates>
 
@@ -221,17 +216,31 @@
       <parameter idref="frequencies"/>
     </deltaExchange>
     <scaleOperator scaleFactor="0.75" weight="3">
-      <parameter idref="clock.rate"/>
-    </scaleOperator>
-    <scaleOperator scaleFactor="0.75" weight="3">
       <parameter idref="treeModel.rootHeight"/>
     </scaleOperator>
     <scaleOperator scaleFactor="0.75" weight="3">
       <parameter idref="exponential.popSize"/>
     </scaleOperator>
+    {% if exponential_growthRate is not defined %}
+    <!-- exponential.growthRate is NOT fixed - define an operator to
+	 adjust it. -->
     <randomWalkOperator windowSize="1.0" weight="3">
       <parameter idref="exponential.growthRate"/>
     </randomWalkOperator>
+    {% else %}
+    <!-- exponential.growthRate is fixed - do not define an operator
+	 to adjust it.  -->
+    <!-- <randomWalkOperator windowSize="1.0" weight="3"> -->
+    <!--   <parameter idref="exponential.growthRate"/> -->
+    <!-- </randomWalkOperator> -->
+
+    {% endif %}
+    {% if clock_rate is not defined %}
+    <!-- clock.rate is not fixed - this operators will adjust it. -->
+    <scaleOperator scaleFactor="0.75" weight="3">
+      <parameter idref="clock.rate"/>
+    </scaleOperator>
+
     <upDownOperator scaleFactor="0.75" weight="3">
       <up>
 	<parameter idref="clock.rate"/>
@@ -240,22 +249,36 @@
 	<parameter idref="treeModel.allInternalNodeHeights"/>
       </down>
     </upDownOperator>
+    {% else %}
+    <!-- clock.rate is fixed - do not define an operator to adjust it. -->
+    <!-- <scaleOperator scaleFactor="0.75" weight="3"> -->
+    <!-- 	  <parameter idref="clock.rate"/> -->
+    <!-- </scaleOperator> -->
+    <!-- <upDownOperator scaleFactor="0.75" weight="3"> -->
+    <!--   <up> -->
+    <!-- 	<parameter idref="clock.rate"/> -->
+    <!--   </up> -->
+    <!--   <down> -->
+    <!-- 	<parameter idref="treeModel.allInternalNodeHeights"/> -->
+    <!--   </down> -->
+    <!-- </upDownOperator> -->
+    {% endif %}
+    
   </operators>
 
   <!-- Define MCMC                                                             -->
-  <mcmc id="mcmc" chainLength="1000000" autoOptimize="true">
+  <mcmc id="mcmc" chainLength="5000000" autoOptimize="true">
     <posterior id="posterior">
       <prior id="prior">
 	{% if toi is defined %}
-	<!-- toi is a two-element array  -->
+	<!-- Uniform prior on tree Height is defined  -->
 	<uniformPrior
 	    lower="{{toi[0]|deltayears}}"
 	    upper="{{toi[1]|deltayears}}">
 	  <parameter idref="treeModel.rootHeight"/>
 	</uniformPrior >
 	{% else %}
-	<!-- Skipping prior on treeModel.rootHeight because toi prior
-	     is undefined -->
+	<!-- Prior treeModel.rootHeight NOT defined. -->
 	{% endif %}
 	<logNormalPrior mean="1.0" stdev="1.25" offset="0.0" meanInRealSpace="false">
 	  <parameter idref="kappa"/>
@@ -263,7 +286,7 @@
 	<uniformPrior lower="0.0" upper="1.0">
 	  <parameter idref="frequencies"/>
 	</uniformPrior>
-	<logNormalPrior mean="{{rate}}" stdev="1.0" offset="0.0" meanInRealSpace="true">
+	<logNormalPrior mean="{{clock_rate|default(default_rate)}}" stdev="1.0" offset="0.0" meanInRealSpace="true">
 	  <parameter idref="clock.rate"/>
 	</logNormalPrior>
 	<oneOnXPrior>
@@ -331,15 +354,15 @@
     <!-- first. -->
 
     
-    <log id="traitFileLog" logEvery="400" fileName="ancestralSequences.log">
-      <ancestralTrait name="trait" traitName="states">
-	<treeModel idref="treeModel"/>
-	<ancestralTreeLikelihood idref="treeLikelihood"/>
-	<mrca>
-	  <taxa idref="taxa(patients)"/>
-	</mrca>
-      </ancestralTrait>
-    </log>
+    <!-- <log id="traitFileLog" logEvery="400" fileName="ancestralSequences.log"> -->
+    <!--   <ancestralTrait name="trait" traitName="states"> -->
+    <!-- 	<treeModel idref="treeModel"/> -->
+    <!-- 	<ancestralTreeLikelihood idref="treeLikelihood"/> -->
+    <!-- 	<mrca> -->
+    <!-- 	  <taxa idref="taxa(patients)"/> -->
+    <!-- 	</mrca> -->
+    <!--   </ancestralTrait> -->
+    <!-- </log> -->
 
   </mcmc>
   <report>

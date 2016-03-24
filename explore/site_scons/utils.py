@@ -1,17 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numpy as np
-
 from SCons.Action import ActionFactory
 import SCons.Util
 import os
 import time
-
-
-def extract_posterior(path, column='clock.rate', burnin=0.4):
-    df = pd.read_csv(path, sep='\t', comment='#')
-    return df[column][int(len(df.index)*burnin):].mean()
 
 
 # Running commands on the cluster sometimes has the unfortunate side-effect of
@@ -49,7 +42,7 @@ def wait_func(dest):
         dest = [dest]
     for entry in dest:
         count = 0
-        limit = 3
+        limit = 30
         while not os.path.isfile(entry) or os.stat(entry).st_size == 0:
             print("waiting for {}...".format(entry))
             time.sleep(2)

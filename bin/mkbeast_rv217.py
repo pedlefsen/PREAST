@@ -41,6 +41,7 @@ import sys
 import argparse
 import os.path
 import operator
+import json
 
 # patients dict stores instance of class Patient keyed by patient
 # id string.  we create a new one when we run into a patient id
@@ -161,10 +162,11 @@ def build_parser():
             required=True, dest='template')
     parser.add_argument('--fasta', help='produce a FASTA file (default: produce XML file)',
             action='store_true', default=False, dest='createFasta')
+    parser.add_argument('--params', help='Specify a JSON parameter file',
+            default=None, dest='params')
     parser.add_argument('--prefix', help='Specify a prefix for all output log filename',
             default="", dest='prefix')
-    parser.add_argument('--outgroup', help='FASTA files for outgroup sequences',
-            default=None, dest='outgroup', type=argparse.FileType('r'))
+    parser.add_argument('--settoi', action='store_true', help='set default prior on treeheight (aka time of infection)')
     parser.add_argument('--nodata', action='store_true', help='set all sequences to "N".  Useful for exploring prior distributions without data.')
     class StoreNameValuePair(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
@@ -189,6 +191,11 @@ def main(args=sys.argv[1:]):
     a = parser.parse_args()
     patients = patients_dd()
 
+    if a.settoi and 'toi' in a.keyvalues:
+        print('Error: The --settoi and toi= parameters are mutually exclusive.  You may set one, but not both.', file=sys.stderr)
+        parser.print_help()
+        sys.exit(1)
+
     if 'toi' in a.keyvalues:
         toi = a.keyvalues['toi']
         toi = toi.split(',')
@@ -204,7 +211,6 @@ def main(args=sys.argv[1:]):
             sys.exit(1)
         a.keyvalues['toi'] = [timedelta(days=int(days)) for days in toi]
 
-
     for datafile in a.datafiles:
         processFasta(datafile, patients, nodata=a.nodata)
     
@@ -213,14 +219,21 @@ def main(args=sys.argv[1:]):
 
     earliest_timepoint = min([ s['date'] - s['delta'] for s in samples])
     latest_timepoint = max(dates)
-    
-    outgroup = list(SeqIO.parse(a.outgroup, "fasta")) if a.outgroup else []
+
+    backoff = int(a.keyvalues.get('backoff', 0))
+    if a.settoi and backoff != 0:
+        a.keyvalues['toi'] = [ latest_timepoint-earliest_timepoint, latest_timepoint-earliest_timepoint + timedelta(days=int(backoff))]
+        
 
     params = dict(patients=patients,
-                  outgroup=outgroup,
                   earliest_timepoint=earliest_timepoint,
                   latest_timepoint=latest_timepoint)
     params.update(a.keyvalues)
+
+    if a.params:
+        with open(a.params) as param_file:    
+            a.params = dict([(k.replace('.','_'),v) for k,v in json.load(param_file).items()])
+            params.update(a.params)
 
     render(params, a.template, sys.stdout)
 
