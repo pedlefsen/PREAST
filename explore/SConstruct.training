@@ -1,0 +1,46 @@
+#!/usr/bin/env scons
+# -*- coding: utf-8 -*-
+
+'''
+Scons file for precalculating beast parameters on training data.
+'''
+from __future__ import print_function
+
+
+import os
+import os.path
+import glob
+import pandas as pd
+
+import SCons
+from SCons.Script import Builder, Environment
+
+from utils import *
+
+environ = os.environ.copy()
+
+for k in ('SLURM_NTASKS', 'SLURM_NPROCS', 'SLURM_NNODES',
+          'SLURM_NTASKS_PER_CORE', 'SLURM_CPUS_PER_TASK', 'SLURM_EXCLUSIVE'):
+    environ[k] = '1'
+environ['SLURM_TIMELIMIT'] = '0-6'
+
+env = Environment(ENV=environ)
+env.PrependENVPath('PATH', '../bin')
+
+samples= [ '../rv217_anon_1w_44.fasta',
+           '../caprisa002_pda_gp120_1m6m_aln.fasta',
+           '../bakeoff_analysis_rv217_40094_6M_NFLG_removeRecombinedSequences.fasta',
+           '../bakeoff_analysis_rv217_40265_1M_NFLG.fasta' ]
+
+config_beast = env.Command('beast_in.xml',
+                               [ '../templates/beast_training.template']+samples,
+                               '../bin/mkbeast_training.py --template ${SOURCES[0]} ${SOURCES[1:]} >$TARGET')
+
+runbeast = env.Command('beastout.log',
+                         config_beast,
+                         'beast -beagle -working ${SOURCES}')
+
+prams = env.Command('params.json',
+                         runbeast,
+                         'extract_params.py ${SOURCES} >$TARGET')
+

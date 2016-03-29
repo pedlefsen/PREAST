@@ -3,15 +3,13 @@
 '''
 extract an estimate of time of infection from a mcmc posterior distribution.
 
-Parses the input fasta file to extract the latest date associated with
-the leaves of the tree.  Then parses the posterior log to extract a mean
-treeheight.  Subtracts the ree height (in years) from the latest leaf
-date to arrive at an estimate for time of infection.  Credible interval
-is calculated within 1.96 std deviation of the tree height.
+Note at one time this script parsed the FASTA file to produce an actual
+date of infection.  Now it just produces treeheight in days, so no
+fasta file is necessary.
 
 Typical usage:
 
-$ posterior_Toi.py outout/beastout.log samples/CAPRISA002_PDC_GP120_1M_aln.fa
+$ posterior_toi.py outout/beastout.log  >toi.csv
 '''
 from __future__ import print_function
 
@@ -41,39 +39,6 @@ def str2timedelta(s):
     return(timedelta(days=delay))
 
     
-def processFasta(datafile):
-    patient = defaultdict(dict)
-    
-    # define a regex to extract the generation number from the fasta id string
-    # we use this to provide tip dates to BEAST.
-    patientId = None
-    with open(datafile, "rU") as handle:
-    
-        # for each fasta sequence in the data file, create a taxon node and a sequence node.
-        for record in SeqIO.parse(handle, "fasta") :
-            # extract the patient id and generation from the fasta name.
-            fields = record.id.split('|')
-            patientId = fields[0]
-            timePoint = fields[1] if len(fields) > 0 else "0"
-            sampleDate = fields[4] if len(fields) > 3 else "0"
-            # if the sequence name ends with "_<digits>", assume this is a multiplicity indicator
-            # and strip it off before converting the date.
-            sampleDate = re.sub(r"_\d+$", '', sampleDate)
-            taxon = record
-
-            collectiondate = patient[sampleDate]
-            if not collectiondate:
-                collectiondate['taxa'] = []
-                collectiondate['date'] = datetime.strptime(sampleDate, '%Y/%m/%d')
-                collectiondate['delta'] = str2timedelta(timePoint)
-
-            collectiondate['taxa'].append(taxon)
-    
-    if patientId is not None:
-        return(patientId, patient)
-    else:
-        raise Exception('Empty fasta file - {}'.format(datafile))
-
 
 def build_parser():
     """
@@ -90,9 +55,8 @@ def build_parser():
 
     parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_argument('--burnin', '-b', help='burning percentage, expressed as whole integer [default %default]', default=10)
+    parser.add_argument('--burnin', '-b', help='burning percentage, expressed as whole integer [default %default]', default=20)
     parser.add_argument('logfile', nargs=1, help='Beast log file', type=existing_file)
-    parser.add_argument('fasta', nargs=1, help='FASTA input', type=existing_file)
 
     return parser
 
@@ -113,13 +77,6 @@ def main(args=sys.argv[1:]):
     toi = tbl['treeModel.rootHeight'][burnin:].mean()
     std = tbl['treeModel.rootHeight'][burnin:].std()
 
-    # find the latest testing date in this sample
-    # time of infection will be calculated backwards from this date.
-    #
-    patients = dict([processFasta(datafile) for datafile in a.fasta])
-    samples = [sample for p in patients.values() for sample in p.values()]
-    dates = [s['date'] for s in samples]
-    latest_timepoint = max(dates)
 
     # calculate a 95% credible intervale (+- 1.96 stddev),
     # assuming treeheights are normally distributed.
@@ -127,11 +84,6 @@ def main(args=sys.argv[1:]):
     # doi_early = latest_timepoint - timedelta(days=365.0*(toi + 1.96*std))
     # doi_late = latest_timepoint - timedelta(days=365.0*(toi - 1.96*std))
 
-    # print('{},{},{},{:.0f},{:.0f},{:.0f}'.format(
-    #     datetime.strftime(doi, '%Y/%m/%d'),
-    #     datetime.strftime(doi_early, '%Y/%m/%d'),
-    #     datetime.strftime(doi_late, '%Y/%m/%d'),
-    #     365.0*toi, 365.0*(toi + 1.96*std), 365.0*(toi - 1.96*std)))
     print('{:.0f},{:.0f},{:.0f}'.format(
         365.0*toi, 365.0*(toi + 1.96*std), 365.0*(toi - 1.96*std)))
         #print(tbl)
