@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Initialize our own variables:
-VERSION="0.12"
+VERSION="0.13"
 output_file=""
 verbose=true
 keep=false

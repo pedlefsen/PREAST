@@ -99,8 +99,13 @@
     </growthRate>
   </exponentialGrowth>
   
-  <!-- define a coalescent tree that is consistent with the prior on tree height -->
-  <coalescentTree id="startingTree" rootHeight="{{((latest_timepoint-earliest_timepoint)+timedelta(days=2))| deltayears}}"> 
+  <!-- define a coalescent tree that is consistent with the prior on
+       tree height -->
+  {% if toi is defined %}
+  <coalescentTree id="startingTree" rootHeight="{{(toi[0]+timedelta(days=2))| deltayears}}"> 
+  {% else %}
+  <coalescentTree id="startingTree" > 
+  {% endif %}
     <taxa idref="taxa"/>
     <exponentialGrowth idref="exponential"/>
   </coalescentTree>
