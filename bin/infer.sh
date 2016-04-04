@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Initialize our own variables:
+VERSION="0.11"
 output_file=""
 verbose=false
 keep=false
@@ -94,7 +95,7 @@ export TEMPLATES=${DIR}/../templates
 files=()
 
 # using getopt -- http://stackoverflow.com/a/7948533/1135316
-TEMP=`getopt -o hvkdp:t: --long help,verbose,keep,deduplicate,prefix:,toi: \
+TEMP=`getopt -o hvkdp:t:j: --long help,verbose,keep,deduplicate,prefix:,toi:,version \
              -n 'infer' -- "$@"`
 
 if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
@@ -111,6 +112,7 @@ while true; do
     -j | --json ) json_params="$2"; shift 2 ;;
     -d | --deduplicate ) deduplicate=true; shift;;
     -t | --toi ) toi="$2"; shift 2 ;;
+    --version ) echo $VERSION ; exit 0 ;;
     -- ) shift; break ;;
     * ) break ;;
   esac
