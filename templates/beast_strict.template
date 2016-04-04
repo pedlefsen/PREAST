@@ -267,7 +267,7 @@
   </operators>
 
   <!-- Define MCMC                                                             -->
-  <mcmc id="mcmc" chainLength="5000000" autoOptimize="true">
+  <mcmc id="mcmc" chainLength="2000000" autoOptimize="true">
     <posterior id="posterior">
       <prior id="prior">
 	{% if toi is defined %}

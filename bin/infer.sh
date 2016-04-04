@@ -7,6 +7,10 @@ keep=false
 deduplicate=false
 prefix="infer_"
 
+# these are default parameters used if the user deos not supply a -params option
+declare -A params
+params=( ["clock.rate"]="0.0039439059" ["exponential.growthRate"]="3.6741292922")
+
 # see http://unix.stackexchange.com/a/84980/100709
 # for a mktmpdir that works on both linux and OS X
 outdir=$(mktemp -d 2>/dev/null)
@@ -21,7 +25,6 @@ trap "cleanup" EXIT
 
 export PATH=~matsengrp/local/bin/:$PATH
 export rate=1.62e-2
-export backoff=0
 
 function usage() {
 cat << EOF
@@ -35,7 +38,10 @@ Options are,
     -d,--deduplicate	collapse duplicate sequence.
 
     -p <prefix>,
-    --prefix <prefix>:	supply a prefix to use for output files (default: "infer_").
+    --prefix <prefix>:	output file prefix, default='_infer',
+
+    -j <params>,
+    --json <params>:	supply a json parameter file,
 
     -t <toi>,
     --toi <toi>:	supply prior limits on time of infection (default: none).
@@ -102,6 +108,7 @@ while true; do
     -v | --verbose ) verbose=true; shift ;;
     -k | --keep ) keep=true; shift ;;
     -p | --prefix ) prefix="$2"; shift 2 ;;
+    -j | --json ) json_params="$2"; shift 2 ;;
     -d | --deduplicate ) deduplicate=true; shift;;
     -t | --toi ) toi="$2"; shift 2 ;;
     -- ) shift; break ;;
@@ -127,10 +134,10 @@ for sample in "${files[@]}"
 do
     label=$(basename $sample)
     label=${label%.*}
-    echocmd "${DEDUP} ${sample} >${outdir}/${label}.fa"
+    echocmd ${DEDUP} ${sample} >${outdir}/${label}.fa
 
     echotty "Creating alignment with PRANK..." 
-    echocmd "prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
+    echocmd prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1
 
     # multiple founders
     # split just below the root and sequences separately.
@@ -138,7 +145,7 @@ do
     
     if [[ $(egrep -c '^>' ${outdir}/left.fasta) > 1 ]]
     then
-	echocmd "prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
+	echocmd prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1
 	founder1=$(prankroot.py ${outdir}/left.best.anc.dnd ${outdir}/left.best.anc.fas)
     else
 	founder1=$(egrep -v '^>' ${outdir}/left.fasta)
@@ -146,18 +153,12 @@ do
     
     if [[ $(egrep -c '^>' ${outdir}/right.fasta) > 1 ]]
     then
-	echocmd "prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
+	echocmd prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1
 	founder2=$(prankroot.py ${outdir}/right.best.anc.dnd ${outdir}/right.best.anc.fas)
     else
 	founder2=$(egrep -v '^>' ${outdir}/right.fasta)
     fi
     
-    # if [[ "${founder1}" == "${founder2}" ]]
-    # then
-    #     echo "Founders are identical"
-    # else
-    #     echo "Founders are different"
-    # fi
     cat >${prefix}multiple.fa <<EOF
 >${label}_founder1
 ${founder1}
@@ -173,23 +174,28 @@ EOF
 EOF
     
 	
-    # inserts sample sequences into a beast configurarion file.
+    # inserts sample sequences into a beast configuration file.
     # parses date from the sequence ids and converts to tip date for BEAST
     echotty "Make BEAST config file..."
 
     # note: ${toi:+toi='${toi}'} expands to toi='${toi}' if the toi value is set, otherwise it expands to nothing.
     # http://wiki.bash-hackers.org/syntax/pe#use_an_alternate_value
-    echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${toi:+toi='${toi}'} ${rate:+rate='${rate}'} ${backoff:+backoff='${backoff}'} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
+    if [ -z "${json_params}" ]; then
+	cmdline_params=$(for key in "${!params[@]}"; do printf "'%s'='%s' " "${key}" "${params[${key}]}"; done)
+    else
+	cmdline_params="--params '${json_params}'"
+    fi
+    echocmd mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${cmdline_params}  default_rate=1.62E-2 ${toi:+toi='${toi}'} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml
 
-    # sigh...if using the -working option of beast, the configuration file must be specified with an absoute path.
+    # sigh...if using the -working option of beast, the configuration file must be specified with an absolute path.
     echotty "Running BEAST..."
-    echocmd "beast -working -overwrite -beagle ${outdir}/beast_in.xml >${outdir}/beastcmd.log  2>&1"
+    echocmd beast -working -overwrite -beagle ${outdir}/beast_in.xml >${outdir}/beastcmd.log  2>&1
 
     echotty 'Extracting estimated time of infection'
-    echocmd 'posterior_toi.py ${outdir}/beastout.log ${outdir}/${label}.fa' >${prefix}toi.csv
+    echocmd posterior_toi.py ${outdir}/beastout.log  >${prefix}toi.csv
 
     # echotty "Exracting guide tree..." 
-    # echocmd "treeannotator ${outdir}/beastout.trees > ${outdir}/mcc.tree 2>${outdir}/treeannotator.log"
+    # echocmd "treeannotator ${outdir}/beastout.trees >${outdir}/mcc.tree 2>${outdir}/treeannotator.log"
 
     # tr "/" "-" < ${outdir}/mcc.tree | nexus2newick.py | tr "-" "/" | tr -d "'" > ${outdir}/guidetree.tree
 
