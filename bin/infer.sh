@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Initialize our own variables:
-VERSION="0.11"
+VERSION="0.12"
 output_file=""
-verbose=false
+verbose=true
 keep=false
 deduplicate=false
 prefix="infer_"
@@ -34,7 +34,7 @@ Infer founders and timing for HIV samples.
 
 Options are,
     -h,--help		display this help and exit
-    -v,--verbose	verbose mode.  Echo description of each command being run.
+    -v,--verbose	toggle verbose mode.  Echo description of each command being run.
     -k,--keep		keep temporary files. Useful in conjunction with -v to debug the process.
     -d,--deduplicate	collapse duplicate sequence.
 
@@ -191,8 +191,8 @@ EOF
 
     # sigh...if using the -working option of beast, the configuration file must be specified with an absolute path.
     echotty "Running BEAST..."
-    echocmd beast -working -overwrite -beagle ${outdir}/beast_in.xml >${outdir}/beastcmd.log  2>&1
-
+    echocmd beast -working -overwrite -beagle ${outdir}/beast_in.xml
+    
     echotty 'Extracting estimated time of infection'
     echocmd posterior_toi.py ${outdir}/beastout.log  >${prefix}toi.csv
 
