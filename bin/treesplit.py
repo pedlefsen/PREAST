@@ -15,7 +15,11 @@ import os.path
 import argparse
 import logging
 from Bio import SeqIO, Alphabet
+
+
+# Load a tree structure from a newick file.
 from Bio import Phylo	# for reading Newick trees like those produced by Prank
+import dendropy
 
 # logging.basicConfig(stream=sys.stdout)
 log = logging.getLogger(__name__)
@@ -37,14 +41,12 @@ def split_sequences(treefile, fastafile, outdir):
     """
 
     # identify the sequence associated with the root node.
-    tree = Phylo.read(treefile, 'newick')
-    rootid = str(tree.root)
-
+    tree = dendropy.Tree.get(path=treefile, schema="newick", preserve_underscores=True)
     record_dict = SeqIO.index(fastafile, "fasta")
-    for f,child in zip(['left','right'], tree.root):
+    for f,child in zip(['left','right'], tree.seed_node.child_nodes()):
         fname = os.path.join(outdir, f+'.fasta')
         with open(fname, "w") as fh:
-            sequences = [record_dict[k.name] for k in child.get_terminals()]
+            sequences = [record_dict[str(k.taxon)[1:-1]] for k in child.leaf_nodes() ]
             SeqIO.write(sequences, fh, "fasta")
 
 
