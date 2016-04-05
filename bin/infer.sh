@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Initialize our own variables:
-VERSION="0.13"
+VERSION="0.14"
 output_file=""
 verbose=true
 keep=false
@@ -128,7 +128,8 @@ DEDUP="cat"
 if [[ "${deduplicate}" = true ]]; then
     DEDUP="dedup.py"
 fi
-set -e # exit on error
+set -o errexit  # exit on error
+set -o pipefail
 
 mkdir -p $(dirname ${prefix})
 
@@ -136,10 +137,10 @@ for sample in "${files[@]}"
 do
     label=$(basename $sample)
     label=${label%.*}
-    echocmd ${DEDUP} ${sample} >${outdir}/${label}.fa
+    echocmd "${DEDUP} ${sample} >${outdir}/${label}.fa"
 
     echotty "Creating alignment with PRANK..." 
-    echocmd prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1
+    echocmd "prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 
     # multiple founders
     # split just below the root and sequences separately.
@@ -147,7 +148,7 @@ do
     
     if [[ $(egrep -c '^>' ${outdir}/left.fasta) > 1 ]]
     then
-	echocmd prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1
+	echocmd "prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 	founder1=$(prankroot.py ${outdir}/left.best.anc.dnd ${outdir}/left.best.anc.fas)
     else
 	founder1=$(egrep -v '^>' ${outdir}/left.fasta)
@@ -155,7 +156,7 @@ do
     
     if [[ $(egrep -c '^>' ${outdir}/right.fasta) > 1 ]]
     then
-	echocmd prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1
+	echocmd "prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 	founder2=$(prankroot.py ${outdir}/right.best.anc.dnd ${outdir}/right.best.anc.fas)
     else
 	founder2=$(egrep -v '^>' ${outdir}/right.fasta)
@@ -187,14 +188,14 @@ EOF
     else
 	cmdline_params="--params '${json_params}'"
     fi
-    echocmd mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${cmdline_params}  default_rate=1.62E-2 ${toi:+toi='${toi}'} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml
+    echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${cmdline_params}  default_rate=1.62E-2 ${toi:+toi='${toi}'} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
 
     # sigh...if using the -working option of beast, the configuration file must be specified with an absolute path.
     echotty "Running BEAST..."
-    echocmd beast -working -overwrite -beagle ${outdir}/beast_in.xml
+    echocmd "beast -working -overwrite -beagle ${outdir}/beast_in.xml"
     
     echotty 'Extracting estimated time of infection'
-    echocmd posterior_toi.py ${outdir}/beastout.log  >${prefix}toi.csv
+    echocmd "posterior_toi.py ${outdir}/beastout.log  >${prefix}toi.csv"
 
     # echotty "Exracting guide tree..." 
     # echocmd "treeannotator ${outdir}/beastout.trees >${outdir}/mcc.tree 2>${outdir}/treeannotator.log"
