@@ -35,6 +35,7 @@ Infer founders and timing for HIV samples.
 Options are,
     -h,--help		display this help and exit
     -v,--verbose	toggle verbose mode.  Echo description of each command being run.
+    -n,--dryrun		show what would happen, wihout actually doing anything. Implies --verbose.
     -k,--keep		keep temporary files. Useful in conjunction with -v to debug the process.
     -d,--deduplicate	collapse duplicate sequence.
 
@@ -65,19 +66,19 @@ EOF
 
 }
 
-function echotty() {
-    # echo to stderr if bound to a tty, otherwise stay silent.
-    if [[  ${verbose} == true && -t 2 ]] ; then
-	echo "$@" 1>&2
-    fi
-}
-
 function echocmd() {
     if [[ ${verbose} == true ]]; then
 	echo "$@" 1>&2
     fi
     if [[ ${dryrun} != true ]]; then
 	eval $@
+    fi
+}
+
+function echotty() {
+    # echo to stderr if bound to a tty, otherwise stay silent.
+    if [[ -t 2 ]] ; then
+	echocmd "echo $@" 
     fi
 }
 
@@ -91,6 +92,16 @@ while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symli
   [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )"  >/dev/null && pwd )"
+
+# check for updates.
+# if checksum of this script and the version in the official repository
+# do not matchs, print a warning.
+reposum=$(curl --silent  https://raw.githubusercontent.com/matsengrp/PREAST/master/bin/infer.sh | md5deep -q)
+thissum=$(cat $DIR/infer.sh | md5deep -q)
+if [[ $reposum != $thissum ]]
+then
+    echo "** An update to infer.sh is avaiable at https://github.com/matsengrp/PREAST.git **"
+fi
 
 export PATH=${DIR}:${PATH}
 export TEMPLATES=${DIR}/../templates
@@ -114,14 +125,14 @@ while true; do
     -j | --json ) json_params="$2"; shift 2 ;;
     -d | --deduplicate ) deduplicate=true; shift;;
     -t | --toi ) toi="$2"; shift 2 ;;
-    -n | --dryrun ) dryrun=true; shift;;
+    -n | --dryrun ) dryrun=true; verbose=true; shift;;
     --version ) echo $VERSION ; exit 0 ;;
     -- ) shift; break ;;
     * ) break ;;
   esac
 done
 
-files=$@
+files=($@)
 if [[ ${#files[@]} == 0 ]]; then
     usage >&2
     exit 1
