@@ -232,8 +232,9 @@ def main(args=sys.argv[1:]):
 
     if a.params:
         with open(a.params) as param_file:    
-            a.params = dict([(k.replace('.','_'),v) for k,v in json.load(param_file).items()])
-            params.update(a.params)
+            params.update(json.load(param_file))
+
+    params = dict([(k.replace('.','_'),v) for k,v in params.items()])
 
     render(params, a.template, sys.stdout)
 

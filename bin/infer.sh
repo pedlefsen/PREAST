@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 # Initialize our own variables:
-VERSION="0.14"
+VERSION="0.15"
 output_file=""
-verbose=true
+verbose=false
 keep=false
 deduplicate=false
 prefix="infer_"
+dryrun=false
 
 # these are default parameters used if the user deos not supply a -params option
 declare -A params
@@ -25,7 +26,6 @@ function cleanup() {
 trap "cleanup" EXIT
 
 export PATH=~matsengrp/local/bin/:$PATH
-export rate=1.62e-2
 
 function usage() {
 cat << EOF
@@ -67,16 +67,18 @@ EOF
 
 function echotty() {
     # echo to stderr if bound to a tty, otherwise stay silent.
-    if [  ${verbose} = true ] && [ -t 2 ] ; then
+    if [[  ${verbose} == true && -t 2 ]] ; then
 	echo "$@" 1>&2
     fi
 }
 
 function echocmd() {
-    if [ ${verbose} = true ]; then
+    if [[ ${verbose} == true ]]; then
 	echo "$@" 1>&2
     fi
-    eval $@
+    if [[ ${dryrun} != true ]]; then
+	eval $@
+    fi
 }
 
 
@@ -95,7 +97,7 @@ export TEMPLATES=${DIR}/../templates
 files=()
 
 # using getopt -- http://stackoverflow.com/a/7948533/1135316
-TEMP=`getopt -o hvkdp:t:j: --long help,verbose,keep,deduplicate,prefix:,toi:,version \
+TEMP=`getopt -o hvkdp:t:j:n --long help,verbose,keep,deduplicate,prefix:,toi:,version,dryrun \
              -n 'infer' -- "$@"`
 
 if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
@@ -112,6 +114,7 @@ while true; do
     -j | --json ) json_params="$2"; shift 2 ;;
     -d | --deduplicate ) deduplicate=true; shift;;
     -t | --toi ) toi="$2"; shift 2 ;;
+    -n | --dryrun ) dryrun=true; shift;;
     --version ) echo $VERSION ; exit 0 ;;
     -- ) shift; break ;;
     * ) break ;;
@@ -125,7 +128,7 @@ if [[ ${#files[@]} == 0 ]]; then
 fi
 
 DEDUP="cat"
-if [[ "${deduplicate}" = true ]]; then
+if [[ ${deduplicate} == true ]]; then
     DEDUP="dedup.py"
 fi
 set -o errexit  # exit on error
@@ -142,36 +145,32 @@ do
     echotty "Creating alignment with PRANK..." 
     echocmd "prank -d=${outdir}/${label}.fa -o=${outdir}/prank -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
 
-    # multiple founders
-    # split just below the root and sequences separately.
+    # callculate ancestral founders for multiple- and single-infections
+    # Split the tree just below the root into two subtrees
     echocmd "treesplit.py -o  ${outdir} ${outdir}/prank.best.dnd ${outdir}/${label}.fa"
-    
-    if [[ $(egrep -c '^>' ${outdir}/left.fasta) > 1 ]]
-    then
-	echocmd "prank -d=${outdir}/left.fasta -o=${outdir}/left -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
-	founder1=$(prankroot.py ${outdir}/left.best.anc.dnd ${outdir}/left.best.anc.fas)
-    else
-	founder1=$(egrep -v '^>' ${outdir}/left.fasta)
-    fi
-    
-    if [[ $(egrep -c '^>' ${outdir}/right.fasta) > 1 ]]
-    then
-	echocmd "prank -d=${outdir}/right.fasta -o=${outdir}/right -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
-	founder2=$(prankroot.py ${outdir}/right.best.anc.dnd ${outdir}/right.best.anc.fas)
-    else
-	founder2=$(egrep -v '^>' ${outdir}/right.fasta)
-    fi
-    
-    cat >${prefix}multiple.fa <<EOF
->${label}_founder1
-${founder1}
->${label}_founder2
-${founder2}
+
+    declare -A founder
+    for subtree in 'left' 'right'
+    do
+	# prank will not run if only given a single sequence,
+	# so avoid that by testing for singletons.
+	if [[ $( ${dryrun} || egrep -c '^>' ${outdir}/${subtree}.fasta) > 1 ]]
+	then
+	    echocmd "prank -d=${outdir}/${subtree}.fasta -o=${outdir}/${subtree} -quiet -once -f=fasta -showanc -showtree -showevents -DNA >${outdir}/prankcmd.log 2>&1"
+	    founder[${subtree}]=$( ${dryrun} || echocmd prankroot.py ${outdir}/${subtree}.best.anc.dnd ${outdir}/${subtree}.best.anc.fas)
+	else
+	    founder[${subtree}]=$( ${dryrun} || egrep -v '^>' ${outdir}/${subtree}.fasta | tr -d '\n')
+	fi
+    done
+
+    # produce the mutiple-infection ancestral sequence file
+    ${dryrun} || cat <<EOF >${prefix}multiple.fa 
+$(for key in "${!founder[@]}"; do printf ">%s_%s\n%s\n" ${label} ${key} ${founder[${key}]} ; done)    
 EOF
     
     # single founder - process all sequences together
     # extract sequences at root of guide tree and output in FASTA format.
-    cat >${prefix}single.fa <<EOF
+    ${dryrun} || cat >${prefix}single.fa <<EOF
 >${label}_founder
 `prankroot.py ${outdir}/prank.best.anc.dnd ${outdir}/prank.best.anc.fas`
 EOF
