@@ -70,7 +70,7 @@ def main(args=sys.argv[1:]):
     parser = build_parser()
     a = parser.parse_args()
     
-    tbl = pd.read_table(a.logfile[0], skiprows=2)
+    tbl = pd.read_csv(a.logfile[0], skiprows=3, sep = '\t')
     rootHeight = tbl['treeModel.rootHeight']
     n = len(rootHeight)
     burnin = int(n*(a.burnin / 100.0))

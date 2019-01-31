@@ -10,20 +10,20 @@ prefix="infer_"
 dryrun=false
 
 # these are default parameters used if the user deos not supply a -params option
-declare -A params
-params=( ["clock.rate"]="0.0039439059" ["exponential.growthRate"]="3.6741292922")
+declare -a params
+params=( ["clock_rate"]="0.0039439059" ["exponential_growthRate"]="3.6741292922")
 
 # see http://unix.stackexchange.com/a/84980/100709
 # for a mktmpdir that works on both linux and OS X
-outdir=$(mktemp -d 2>/dev/null)
+outdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir')
 function cleanup() {
-    if [ -d "${outdir}" -a "${outdir}"=="$(dirname $(mktemp -d -u))*" ] && [ ${keep} != true ]
+    if [ -d "${outdir}" -a "${outdir}"=="$(dirname $(mktemp -d -u -t 'mytmpdir'))*" ] && [ ${keep} != true ]
     then
 	echocmd rm -rf "${outdir}"
     fi
 }
 
-trap "cleanup" EXIT
+#trap "cleanup" EXIT
 
 export PATH=~matsengrp/local/bin/:$PATH
 
@@ -160,7 +160,7 @@ do
     # Split the tree just below the root into two subtrees
     echocmd "treesplit.py -o  ${outdir} ${outdir}/prank.best.dnd ${outdir}/${label}.fa"
 
-    declare -A founder
+    declare -a founder
     for subtree in 'left' 'right'
     do
 	# prank will not run if only given a single sequence,
@@ -174,7 +174,7 @@ do
 	fi
     done
 
-    # produce the mutiple-infection ancestral sequence file
+    # p10066oduce the mutiple-infection ancestral sequence file
     ${dryrun} || cat <<EOF >${prefix}multiple.fa 
 $(for key in "${!founder[@]}"; do printf ">%s_%s\n%s\n" ${label} ${key} ${founder[${key}]} ; done)    
 EOF
@@ -199,6 +199,7 @@ EOF
 	cmdline_params="--params '${json_params}'"
     fi
     echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${cmdline_params}  default_rate=1.62E-2 ${toi:+toi='${toi}'} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
+    echocmd "cp ${outdir}/beast_in.xml ${prefix}beast_in.xml"
 
     # sigh...if using the -working option of beast, the configuration file must be specified with an absolute path.
     echotty "Running BEAST..."
