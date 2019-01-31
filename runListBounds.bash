@@ -22,8 +22,9 @@ do
    cd $outputDir
    echo "$homeDir/bin/infer.sh --verbose --toi ${lb},${ub} -p ${bn}. $fname >>$outputFile 2>>$errFile" >>$outputFile
    $homeDir/bin/infer.sh --verbose --toi ${lb},${ub} -p ${bn}. $fname >>$outputFile 2>>$errFile
-#   mv infer_multiple.fa ${outputFile}multiple.fa
-#   mv infer_single.fa   ${outputFile}single.fa
-#   mv infer_toi.csv     ${outputFile}toi.csv
+   mv infer_multiple.fa ${outputFile}multiple.fa
+   mv infer_single.fa   ${outputFile}single.fa
+   mv infer_toi.csv     ${outputFile}toi.csv
+   mv infer_beast_in.xml ${outputFile}_beast_in.xml
    popd
 done < $listFile

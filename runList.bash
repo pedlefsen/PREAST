@@ -18,9 +18,10 @@ do
    pushd .
    cd $outputDir
    $homeDir/bin/infer.sh $fname >>$outputFile 2>>$errFile
-   mv infer_multiple.fa ${outputFile}multiple.fa
-   mv infer_single.fa   ${outputFile}single.fa
-   mv infer_toi.csv     ${outputFile}toi.csv
+   mv infer_multiple.fa  ${outputFile}multiple.fa
+   mv infer_single.fa    ${outputFile}single.fa
+   mv infer_toi.csv      ${outputFile}toi.csv
+   mv infer_beast_in.xml ${outputFile}_beast_in.xml
    popd
 done < $listFile
 
