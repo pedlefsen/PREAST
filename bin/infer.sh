@@ -10,20 +10,20 @@ prefix="infer_"
 dryrun=false
 
 # these are default parameters used if the user deos not supply a -params option
-declare -A params
-params=( ["clock.rate"]="0.0039439059" ["exponential.growthRate"]="3.6741292922")
+declare -a params
+params=( ["clock_rate"]="0.0039439059" ["exponential_growthRate"]="3.6741292922")
 
 # see http://unix.stackexchange.com/a/84980/100709
 # for a mktmpdir that works on both linux and OS X
-outdir=$(mktemp -d 2>/dev/null)
+outdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir')
 function cleanup() {
-    if [ -d "${outdir}" -a "${outdir}"=="$(dirname $(mktemp -d -u))*" ] && [ ${keep} != true ]
+    if [ -d "${outdir}" -a "${outdir}"=="$(dirname $(mktemp -d -u -t 'mytmpdir'))*" ] && [ ${keep} != true ]
     then
 	echocmd rm -rf "${outdir}"
     fi
 }
 
-trap "cleanup" EXIT
+#trap "cleanup" EXIT
 
 export PATH=~matsengrp/local/bin/:$PATH
 
