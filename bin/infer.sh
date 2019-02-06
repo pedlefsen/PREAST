@@ -160,7 +160,7 @@ do
     # Split the tree just below the root into two subtrees
     echocmd "treesplit.py -o  ${outdir} ${outdir}/prank.best.dnd ${outdir}/${label}.fa"
 
-    declare -A founder
+    declare -a founder
     for subtree in 'left' 'right'
     do
 	# prank will not run if only given a single sequence,
@@ -174,7 +174,7 @@ do
 	fi
     done
 
-    # produce the mutiple-infection ancestral sequence file
+    # p10066oduce the mutiple-infection ancestral sequence file
     ${dryrun} || cat <<EOF >${prefix}multiple.fa 
 $(for key in "${!founder[@]}"; do printf ">%s_%s\n%s\n" ${label} ${key} ${founder[${key}]} ; done)    
 EOF
@@ -199,6 +199,7 @@ EOF
 	cmdline_params="--params '${json_params}'"
     fi
     echocmd "mkbeast_rv217.py --template ${TEMPLATES}/beast_strict.template ${cmdline_params}  default_rate=1.62E-2 ${toi:+toi='${toi}'} ${outdir}/prank.best.fas > ${outdir}/beast_in.xml"
+    echocmd "cp ${outdir}/beast_in.xml ${prefix}beast_in.xml"
 
     # sigh...if using the -working option of beast, the configuration file must be specified with an absolute path.
     echotty "Running BEAST..."
